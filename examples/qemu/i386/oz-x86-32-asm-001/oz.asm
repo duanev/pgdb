@@ -6,7 +6,7 @@
 ;
 ;
 ; usage:
-;	$ qemu-system-i386 -boot a -fda oz_fd.img
+;	$ qemu-system-i386 -boot a -fda oz_fd -monitor stdio
 ;
 ; requires: nasm-2.07  or later from: http://www.nasm.us
 ;
@@ -35,7 +35,7 @@ codestart :
 
 bios_entry :
     cli
-    jmp short load_stage2   ; jump to stage2 loader, skip mbr data struct
+    jmp 0:main              ; load cs, skip over mbr data struct
 
 times 6-($-$$)  db 0
 oemid db "oz"
@@ -114,7 +114,17 @@ int_handler_kbd :
 bits 16
 align 2
 
-load_stage2 :
+main :
+    mov  ax,stack_loc
+    mov  sp,ax
+    xor  ax,ax
+    mov  ss,ax
+    mov  es,ax
+    mov  ds,ax
+    mov  fs,ax
+    mov  gs,ax
+    cld
+
     push dx                 ; save BIOS drive number
 
     mov  ax,0x0600          ; ah=06h : scroll window up, if al = 0 clrscr
@@ -130,8 +140,8 @@ load_stage2 :
     mov  byte [gs:1],0xE    ; turn the first two chars yellow
     mov  byte [gs:3],0xE
 
-;   mov  ah,0x00            ; Fn 00h of int 16h: read next character
-;   int  0x16               ; wait for the user to respond...
+    mov  ah,0x00            ; Fn 00h of int 16h: read next character
+    int  0x16               ; wait for the user to respond...
 
     lgdt [gdtr]             ; initialize the gdt
     mov  eax,cr0

@@ -12,7 +12,7 @@ Value     Name
 00000000  nsectors
 00000020  IRQA
 00000021  IRQB
-00000148  codesize
+00000158  codesize
 00000000  nullsel
 00000008  codesel
 00000010  datasel
@@ -22,7 +22,7 @@ Value     Name
 00006180  idt_end
 00007000  stack_loc
 00000400  stack_size
-000000B8  datasize
+000000A8  datasize
 
 
 ---- Section .text ------------------------------------------------------------
@@ -33,21 +33,21 @@ Real              Virtual           Name
             7C06              7C06  oemid
             7C24              7C24  int_handler_timer
             7C4C              7C4C  int_handler_kbd
-            7C52              7C52  load_stage2
-            7C86              7C86  flush_ip1
-            7D2A              7D2A  idle
-            7D2D              7D2D  puts_vga_rm
-            7D32              7D32  puts_vga_rm_loop
-            7D40              7D40  puts_vga_rm_done
+            7C52              7C52  main
+            7C9C              7C9C  flush_ip1
+            7D40              7D40  idle
+            7D43              7D43  puts_vga_rm
+            7D48              7D48  puts_vga_rm_loop
+            7D56              7D56  puts_vga_rm_done
 
 ---- Section .data ------------------------------------------------------------
 
 Real              Virtual           Name
-            7D48              7D48  datastart
-            7D48              7D48  gdt
-            7D70              7D70  gdt_end
-            7D70              7D70  gdtr
-            7D76              7D76  idtr
-            7D7C              7D7C  bootmsg
+            7D58              7D58  datastart
+            7D58              7D58  gdt
+            7D80              7D80  gdt_end
+            7D80              7D80  gdtr
+            7D86              7D86  idtr
+            7D8C              7D8C  bootmsg
             7E00              7E00  kend
 

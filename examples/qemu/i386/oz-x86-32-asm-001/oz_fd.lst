@@ -6,7 +6,7 @@
      6                                  ;
      7                                  ;
      8                                  ; usage:
-     9                                  ;	$ qemu-system-i386 -boot a -fda oz_fd.img
+     9                                  ;	$ qemu-system-i386 -boot a -fda oz_fd -monitor stdio
     10                                  ;
     11                                  ; requires: nasm-2.07  or later from: http://www.nasm.us
     12                                  ;
@@ -35,9 +35,9 @@
     35                                  
     36                                  bios_entry :
     37 00000000 FA                          cli
-    38 00000001 EB4F                        jmp short load_stage2   ; jump to stage2 loader, skip mbr data struct
+    38 00000001 EA[5200]0000                jmp 0:main              ; load cs, skip over mbr data struct
     39                                  
-    40 00000003 00<rept>                times 6-($-$$)  db 0
+    40                                  times 6-($-$$)  db 0
     41 00000006 6F7A                    oemid db "oz"
     42                                  
     43 00000008 00<rept>                times 11-($-$$)  db 0
@@ -114,213 +114,223 @@
    114                                  bits 16
    115                                  align 2
    116                                  
-   117                                  load_stage2 :
-   118 00000052 52                          push dx                 ; save BIOS drive number
-   119                                  
-   120 00000053 B80006                      mov  ax,0x0600          ; ah=06h : scroll window up, if al = 0 clrscr
-   121 00000056 B90000                      mov  cx,0x0000          ; clear window from 0,0 
-   122 00000059 BA4F17                      mov  dx,0x174f          ; to 23,79
-   123 0000005C B70F                        mov  bh,0xf             ; fill with hi white
-   124 0000005E CD10                        int  0x10               ; clear screen for direct writes to video memory
-   125                                  
-   126 00000060 BE[3400]                    mov  si,bootmsg
-   127 00000063 31DB                        xor  bx,bx
-   128 00000065 E8C500                      call puts_vga_rm
-   129                                                              ; puts_vga_rm leaves gs pointing at video mem
-   130 00000068 65C60601000E                mov  byte [gs:1],0xE    ; turn the first two chars yellow
-   131 0000006E 65C60603000E                mov  byte [gs:3],0xE
-   132                                  
-   133                                  ;   mov  ah,0x00            ; Fn 00h of int 16h: read next character
-   134                                  ;   int  0x16               ; wait for the user to respond...
+   117                                  main :
+   118 00000052 B80070                      mov  ax,stack_loc
+   119 00000055 89C4                        mov  sp,ax
+   120 00000057 31C0                        xor  ax,ax
+   121 00000059 8ED0                        mov  ss,ax
+   122 0000005B 8EC0                        mov  es,ax
+   123 0000005D 8ED8                        mov  ds,ax
+   124 0000005F 8EE0                        mov  fs,ax
+   125 00000061 8EE8                        mov  gs,ax
+   126 00000063 FC                          cld
+   127                                  
+   128 00000064 52                          push dx                 ; save BIOS drive number
+   129                                  
+   130 00000065 B80006                      mov  ax,0x0600          ; ah=06h : scroll window up, if al = 0 clrscr
+   131 00000068 B90000                      mov  cx,0x0000          ; clear window from 0,0 
+   132 0000006B BA4F17                      mov  dx,0x174f          ; to 23,79
+   133 0000006E B70F                        mov  bh,0xf             ; fill with hi white
+   134 00000070 CD10                        int  0x10               ; clear screen for direct writes to video memory
    135                                  
-   136 00000074 0F0116[2800]                lgdt [gdtr]             ; initialize the gdt
-   137 00000079 0F20C0                      mov  eax,cr0
-   138 0000007C 0C01                        or   al,0x01            ; set the protected mode bit (lsb of cr0)
-   139 0000007E 0F22C0                      mov  cr0,eax
-   140 00000081 EA[8600]0800                jmp  codesel:flush_ip1  ; flush the cpu instruction pipeline
-   141                                  flush_ip1: 
-   142                                  bits 32                     ; instructions after this point are 32bit
-   143                                  
-   144 00000086 66B81000                    mov  ax,datasel   
-   145 0000008A 8ED8                        mov  ds,ax              ; initialize the data segments
-   146 0000008C 8EC0                        mov  es,ax
-   147 0000008E 66B81800                    mov  ax,stacksel        ; setup a restricted stack segment
-   148 00000092 8ED0                        mov  ss,ax
-   149                                  
-   150                                      ; re-program the 8259's to move the hardware vectors
-   151                                      ; out of the soft int range ... what were people thinking!
-   152                                  
-   153 00000094 B011                        mov  al,0x11
-   154 00000096 E620                        out  0x20,al            ; init the 1st 8259
-   155 00000098 B011                        mov  al,0x11
-   156 0000009A E6A0                        out  0xA0,al            ; init the 2nd 8259
-   157 0000009C B020                        mov  al,0x20
-   158 0000009E E621                        out  0x21,al            ; base the 1st 8259 at 0x20
-   159 000000A0 B028                        mov  al,0x28
-   160 000000A2 E6A1                        out  0xA1,al            ; base the 2nd 8259 at 0x28
-   161 000000A4 B004                        mov  al,0x04
-   162 000000A6 E621                        out  0x21,al            ; set 1st 8259 as master
-   163 000000A8 B002                        mov  al,0x02
-   164 000000AA E6A1                        out  0xA1,al            ; set 2nd 8259 as slave
-   165 000000AC B001                        mov  al,0x01
-   166 000000AE E621                        out  0x21,al
-   167 000000B0 B001                        mov  al,0x01
-   168 000000B2 E6A1                        out  0xA1,al
-   169 000000B4 B000                        mov  al,0x00
-   170 000000B6 E621                        out  0x21,al
-   171 000000B8 B000                        mov  al,0x00
-   172 000000BA E6A1                        out  0xA1,al
-   173                                  
-   174                                      ; ---- debug marker
-   175 000000BC 66B82000                    mov  ax,videosel        ; point gs at video memory
-   176 000000C0 8EE8                        mov  gs,ax
-   177 000000C2 65C605010000000A            mov  byte [gs:1],0xA    ; turn the first two chars green
-   178 000000CA 65C605030000000A            mov  byte [gs:3],0xA
-   179                                  
-   180                                      ; ---- setup interrupt handlers
-   181                                  
-   182 000000D2 B8[24000000]                mov  eax,int_handler_timer
-   183 000000D7 66A300610000                mov  [idt+IRQA*8],ax
-   184 000000DD 66C705026100000800          mov  word [idt+IRQA*8+2],codesel
-   185 000000E6 66C70504610000008E          mov  word [idt+IRQA*8+4],0x8E00
-   186 000000EF C1E810                      shr  eax,16
-   187 000000F2 66A306610000                mov  [idt+IRQA*8+6],ax
-   188                                  
-   189 000000F8 B8[4C000000]                mov  eax,int_handler_kbd
-   190 000000FD 66A308610000                mov  [idt+IRQB*8],ax
-   191 00000103 66C7050A6100000800          mov  word [idt+IRQB*8+2],codesel
-   192 0000010C 66C7050C610000008E          mov  word [idt+IRQB*8+4],0x8E00
-   193 00000115 C1E810                      shr  eax,16
-   194 00000118 66A30E610000                mov  [idt+IRQB*8+6],ax
-   195                                  
-   196 0000011E 0F011D[2E000000]            lidt [idtr]                     ; install the idt
-   197 00000125 66BC0004                    mov  sp,stack_size              ; initialize the stack
+   136 00000072 BE[3400]                    mov  si,bootmsg
+   137 00000075 31DB                        xor  bx,bx
+   138 00000077 E8C900                      call puts_vga_rm
+   139                                                              ; puts_vga_rm leaves gs pointing at video mem
+   140 0000007A 65C60601000E                mov  byte [gs:1],0xE    ; turn the first two chars yellow
+   141 00000080 65C60603000E                mov  byte [gs:3],0xE
+   142                                  
+   143 00000086 B400                        mov  ah,0x00            ; Fn 00h of int 16h: read next character
+   144 00000088 CD16                        int  0x16               ; wait for the user to respond...
+   145                                  
+   146 0000008A 0F0116[2800]                lgdt [gdtr]             ; initialize the gdt
+   147 0000008F 0F20C0                      mov  eax,cr0
+   148 00000092 0C01                        or   al,0x01            ; set the protected mode bit (lsb of cr0)
+   149 00000094 0F22C0                      mov  cr0,eax
+   150 00000097 EA[9C00]0800                jmp  codesel:flush_ip1  ; flush the cpu instruction pipeline
+   151                                  flush_ip1: 
+   152                                  bits 32                     ; instructions after this point are 32bit
+   153                                  
+   154 0000009C 66B81000                    mov  ax,datasel   
+   155 000000A0 8ED8                        mov  ds,ax              ; initialize the data segments
+   156 000000A2 8EC0                        mov  es,ax
+   157 000000A4 66B81800                    mov  ax,stacksel        ; setup a restricted stack segment
+   158 000000A8 8ED0                        mov  ss,ax
+   159                                  
+   160                                      ; re-program the 8259's to move the hardware vectors
+   161                                      ; out of the soft int range ... what were people thinking!
+   162                                  
+   163 000000AA B011                        mov  al,0x11
+   164 000000AC E620                        out  0x20,al            ; init the 1st 8259
+   165 000000AE B011                        mov  al,0x11
+   166 000000B0 E6A0                        out  0xA0,al            ; init the 2nd 8259
+   167 000000B2 B020                        mov  al,0x20
+   168 000000B4 E621                        out  0x21,al            ; base the 1st 8259 at 0x20
+   169 000000B6 B028                        mov  al,0x28
+   170 000000B8 E6A1                        out  0xA1,al            ; base the 2nd 8259 at 0x28
+   171 000000BA B004                        mov  al,0x04
+   172 000000BC E621                        out  0x21,al            ; set 1st 8259 as master
+   173 000000BE B002                        mov  al,0x02
+   174 000000C0 E6A1                        out  0xA1,al            ; set 2nd 8259 as slave
+   175 000000C2 B001                        mov  al,0x01
+   176 000000C4 E621                        out  0x21,al
+   177 000000C6 B001                        mov  al,0x01
+   178 000000C8 E6A1                        out  0xA1,al
+   179 000000CA B000                        mov  al,0x00
+   180 000000CC E621                        out  0x21,al
+   181 000000CE B000                        mov  al,0x00
+   182 000000D0 E6A1                        out  0xA1,al
+   183                                  
+   184                                      ; ---- debug marker
+   185 000000D2 66B82000                    mov  ax,videosel        ; point gs at video memory
+   186 000000D6 8EE8                        mov  gs,ax
+   187 000000D8 65C605010000000A            mov  byte [gs:1],0xA    ; turn the first two chars green
+   188 000000E0 65C605030000000A            mov  byte [gs:3],0xA
+   189                                  
+   190                                      ; ---- setup interrupt handlers
+   191                                  
+   192 000000E8 B8[24000000]                mov  eax,int_handler_timer
+   193 000000ED 66A300610000                mov  [idt+IRQA*8],ax
+   194 000000F3 66C705026100000800          mov  word [idt+IRQA*8+2],codesel
+   195 000000FC 66C70504610000008E          mov  word [idt+IRQA*8+4],0x8E00
+   196 00000105 C1E810                      shr  eax,16
+   197 00000108 66A306610000                mov  [idt+IRQA*8+6],ax
    198                                  
-   199                                  
-   200 00000129 FB                          sti
-   201                                  idle :
-   202 0000012A F4                          hlt                     ; wait for interrupts
-   203 0000012B EBFD                        jmp  idle
-   204                                  
-   205                                  ; ----------------------------
-   206                                  ;   puts_vga_rm - write a null delimited string to the VGA controller
-   207                                  ;                  in real mode
-   208                                  ;
-   209                                  ;           esi - address of string
-   210                                  ;           ebx - screen location (2 bytes per char, 160 bytes per line)
-   211                                  ;           eax - destroyed
-   212                                  ;            gs - destroyed
-   213                                  bits 16
+   199 0000010E B8[4C000000]                mov  eax,int_handler_kbd
+   200 00000113 66A308610000                mov  [idt+IRQB*8],ax
+   201 00000119 66C7050A6100000800          mov  word [idt+IRQB*8+2],codesel
+   202 00000122 66C7050C610000008E          mov  word [idt+IRQB*8+4],0x8E00
+   203 0000012B C1E810                      shr  eax,16
+   204 0000012E 66A30E610000                mov  [idt+IRQB*8+6],ax
+   205                                  
+   206 00000134 0F011D[2E000000]            lidt [idtr]                     ; install the idt
+   207 0000013B 66BC0004                    mov  sp,stack_size              ; initialize the stack
+   208                                  
+   209                                  
+   210 0000013F FB                          sti
+   211                                  idle :
+   212 00000140 F4                          hlt                     ; wait for interrupts
+   213 00000141 EBFD                        jmp  idle
    214                                  
-   215                                  puts_vga_rm :
-   216 0000012D B800B8                      mov  ax,0xb800      ; point gs at video memory
-   217 00000130 8EE8                        mov  gs,ax
-   218                                  puts_vga_rm_loop :
-   219 00000132 AC                          lodsb
-   220 00000133 3C00                        cmp  al,0
-   221 00000135 7409                        jz   puts_vga_rm_done
-   222 00000137 658807                      mov  [gs:bx],al
-   223 0000013A 6643                        inc  ebx
-   224 0000013C 6643                        inc  ebx
-   225 0000013E EBF2                        jmp  puts_vga_rm_loop
-   226                                  puts_vga_rm_done :
-   227 00000140 C3                          ret
-   228                                  
-   229 00000141 90<rept>                align 8                     ; only need 4 but 8 looks nicer when debugging
-   230                                  codesize equ ($-codestart)
-   231                                  
-   232                                  ; ---------------------------------------------------------
-   233                                  section .data
-   234                                  datastart :
-   235                                  
-   236                                  ; -------- descriptors --------------
-   237                                  ; Intel SW dev manual 3a, 3.4.5, pg 103
-   238                                  ;
-   239                                  ; In my opinion, macros for descriptor entries
-   240                                  ; don't make the code that much more readable.
+   215                                  ; ----------------------------
+   216                                  ;   puts_vga_rm - write a null delimited string to the VGA controller
+   217                                  ;                  in real mode
+   218                                  ;
+   219                                  ;           esi - address of string
+   220                                  ;           ebx - screen location (2 bytes per char, 160 bytes per line)
+   221                                  ;           eax - destroyed
+   222                                  ;            gs - destroyed
+   223                                  bits 16
+   224                                  
+   225                                  puts_vga_rm :
+   226 00000143 B800B8                      mov  ax,0xb800      ; point gs at video memory
+   227 00000146 8EE8                        mov  gs,ax
+   228                                  puts_vga_rm_loop :
+   229 00000148 AC                          lodsb
+   230 00000149 3C00                        cmp  al,0
+   231 0000014B 7409                        jz   puts_vga_rm_done
+   232 0000014D 658807                      mov  [gs:bx],al
+   233 00000150 6643                        inc  ebx
+   234 00000152 6643                        inc  ebx
+   235 00000154 EBF2                        jmp  puts_vga_rm_loop
+   236                                  puts_vga_rm_done :
+   237 00000156 C3                          ret
+   238                                  
+   239 00000157 90                      align 8                     ; only need 4 but 8 looks nicer when debugging
+   240                                  codesize equ ($-codestart)
    241                                  
-   242                                  gdt :
-   243                                  nullsel equ $-gdt           ; nullsel = 0h
-   244 00000000 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
+   242                                  ; ---------------------------------------------------------
+   243                                  section .data
+   244                                  datastart :
    245                                  
-   246                                  codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
-   247 00000008 FFFF                        dw 0xffff               ; limit 0-15
-   248 0000000A 0000                        dw 0x0000               ; base  0-15
-   249 0000000C 00                          db 0x00                 ; base 16-23
-   250 0000000D 9A                          db 0x9a                 ; present, dpl=0, code e/r
-   251 0000000E CF                          db 0xcf                 ; 32bit, 4k granular, limit 16-19
-   252 0000000F 00                          db 0x00                 ; base 24-31
-   253                                  
-   254                                  datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
-   255 00000010 FFFF                        dw 0xffff               ; limit 0-15
-   256 00000012 0000                        dw 0x0000               ; base  0-15
-   257 00000014 00                          db 0x00                 ; base 16-23
-   258 00000015 92                          db 0x92                 ; present, dpl=0, data r/w
-   259 00000016 CF                          db 0xcf                 ; 32bit, 4k granular, limit 16-19
-   260 00000017 00                          db 0x00                 ; base 24-31
-   261                                  
-   262                                  stacksel equ $-gdt          ; stacksel = 18h  small limited stack
-   263 00000018 0004                        dw stack_size           ; limit
-   264 0000001A 0070                        dw stack_loc            ; base
-   265 0000001C 00                          db 0
-   266 0000001D 92                          db 0x92                 ; present, dpl=0, data, r/w
-   267 0000001E 00                          db 0                    ; 16bit, byte granular
-   268 0000001F 00                          db 0
-   269                                  
-   270                                  videosel equ $-gdt          ; videosel = 20h
-   271 00000020 9F0F                        dw 3999                 ; limit 80*25*2-1
-   272 00000022 0080                        dw 0x8000               ; base 0xb8000
-   273 00000024 0B                          db 0x0b
-   274 00000025 92                          db 0x92                 ; present, dpl=0, data, r/w
-   275 00000026 00                          db 0x00                 ; byte granular, 16 bit
-   276 00000027 00                          db 0x00
-   277                                  
-   278                                  gdt_end :
+   246                                  ; -------- descriptors --------------
+   247                                  ; Intel SW dev manual 3a, 3.4.5, pg 103
+   248                                  ;
+   249                                  ; In my opinion, macros for descriptor entries
+   250                                  ; don't make the code that much more readable.
+   251                                  
+   252                                  gdt :
+   253                                  nullsel equ $-gdt           ; nullsel = 0h
+   254 00000000 0000000000000000            dd 0,0                  ; first descriptor per convention is 0
+   255                                  
+   256                                  codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
+   257 00000008 FFFF                        dw 0xffff               ; limit 0-15
+   258 0000000A 0000                        dw 0x0000               ; base  0-15
+   259 0000000C 00                          db 0x00                 ; base 16-23
+   260 0000000D 9A                          db 0x9a                 ; present, dpl=0, code e/r
+   261 0000000E CF                          db 0xcf                 ; 32bit, 4k granular, limit 16-19
+   262 0000000F 00                          db 0x00                 ; base 24-31
+   263                                  
+   264                                  datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
+   265 00000010 FFFF                        dw 0xffff               ; limit 0-15
+   266 00000012 0000                        dw 0x0000               ; base  0-15
+   267 00000014 00                          db 0x00                 ; base 16-23
+   268 00000015 92                          db 0x92                 ; present, dpl=0, data r/w
+   269 00000016 CF                          db 0xcf                 ; 32bit, 4k granular, limit 16-19
+   270 00000017 00                          db 0x00                 ; base 24-31
+   271                                  
+   272                                  stacksel equ $-gdt          ; stacksel = 18h  small limited stack
+   273 00000018 0004                        dw stack_size           ; limit
+   274 0000001A 0070                        dw stack_loc            ; base
+   275 0000001C 00                          db 0
+   276 0000001D 92                          db 0x92                 ; present, dpl=0, data, r/w
+   277 0000001E 00                          db 0                    ; 16bit, byte granular
+   278 0000001F 00                          db 0
    279                                  
-   280                                  gdtr :
-   281 00000028 2700                        dw gdt_end - gdt - 1    ; gdt length
-   282 0000002A [00000000]                  dd gdt                  ; gdt physical address
-   283                                  
-   284                                  idtr :
-   285 0000002E 7F01                        dw idt_end - idt - 1    ; length of the idt
-   286 00000030 00600000                    dd idt                  ; address of the idt
+   280                                  videosel equ $-gdt          ; videosel = 20h
+   281 00000020 9F0F                        dw 3999                 ; limit 80*25*2-1
+   282 00000022 0080                        dw 0x8000               ; base 0xb8000
+   283 00000024 0B                          db 0x0b
+   284 00000025 92                          db 0x92                 ; present, dpl=0, data, r/w
+   285 00000026 00                          db 0x00                 ; byte granular, 16 bit
+   286 00000027 00                          db 0x00
    287                                  
-   288                                  
-   289 00000034 4F5A2076302E30302E-     bootmsg     db      "OZ v0.00.04 - 2007/03/11  ",0
-   290 0000003D 3034202D2032303037-
-   291 00000046 2F30332F3131202000 
-   292                                  
-   293 0000004F 00<rept>                times 446-codesize-($-$$)  db 0 ; Fill with zeros up to the partition table
-   294                                  
-   295                                  %ifdef USB
-   296                                  ; a partition table for my 512MB USB stick
-   297                                  db 0x80, 0x01, 0x01, 0, 0x06, 0x10, 0xe0, 0xbe, 0x20, 0, 0, 0, 0xe0, 0x7b, 0xf, 0
-   298                                  db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-   299                                  db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-   300                                  db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-   301                                  %else
-   302                                              ; A default partition table that matches a 1.44MB floppy
-   303 00000076 800101000601124F                    db 0x80,0x01,0x01,0x00,0x06,0x01,0x12,0x4f
-   304 0000007E 120000002E0B0000                    db 0x12,0x00,0x00,0x00,0x2e,0x0b,0x00,0x00
-   305 00000086 000000000000000000-                 db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-   306 0000008F 00000000000000     
-   307 00000096 000000000000000000-                 db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-   308 0000009F 00000000000000     
-   309 000000A6 000000000000000000-                 db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-   310 000000AF 00000000000000     
-   311                                  %endif
-   312                                  
-   313                                  times 510-codesize-($-$$) db 0      ; fill with zeros up to MBR signature
-   314                                  
-   315 000000B6 55AA                                dw 0x0aa55      ; write aa55 in bytes 511,512 to indicate
-   316                                                              ; that it is a boot sector. 
-   317                                  
-   318                                  idt equ 0x6000              ; use some of the free memory below us
-   319                                  idt_end equ idt+48*8        ; 32 sw + 16 remapped hw vectors
-   320                                  
-   321                                  stack_loc  equ 0x7000
-   322                                  stack_size equ 1024
-   323                                  
-   324                                  datasize equ ($-datastart)
-   325                                  
-   326                                  kend :
+   288                                  gdt_end :
+   289                                  
+   290                                  gdtr :
+   291 00000028 2700                        dw gdt_end - gdt - 1    ; gdt length
+   292 0000002A [00000000]                  dd gdt                  ; gdt physical address
+   293                                  
+   294                                  idtr :
+   295 0000002E 7F01                        dw idt_end - idt - 1    ; length of the idt
+   296 00000030 00600000                    dd idt                  ; address of the idt
+   297                                  
+   298                                  
+   299 00000034 4F5A2076302E30302E-     bootmsg     db      "OZ v0.00.04 - 2007/03/11  ",0
+   300 0000003D 3034202D2032303037-
+   301 00000046 2F30332F3131202000 
+   302                                  
+   303 0000004F 00<rept>                times 446-codesize-($-$$)  db 0 ; Fill with zeros up to the partition table
+   304                                  
+   305                                  %ifdef USB
+   306                                  ; a partition table for my 512MB USB stick
+   307                                  db 0x80, 0x01, 0x01, 0, 0x06, 0x10, 0xe0, 0xbe, 0x20, 0, 0, 0, 0xe0, 0x7b, 0xf, 0
+   308                                  db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+   309                                  db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+   310                                  db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+   311                                  %else
+   312                                              ; A default partition table that matches a 1.44MB floppy
+   313 00000066 800101000601124F                    db 0x80,0x01,0x01,0x00,0x06,0x01,0x12,0x4f
+   314 0000006E 120000002E0B0000                    db 0x12,0x00,0x00,0x00,0x2e,0x0b,0x00,0x00
+   315 00000076 000000000000000000-                 db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+   316 0000007F 00000000000000     
+   317 00000086 000000000000000000-                 db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+   318 0000008F 00000000000000     
+   319 00000096 000000000000000000-                 db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+   320 0000009F 00000000000000     
+   321                                  %endif
+   322                                  
+   323                                  times 510-codesize-($-$$) db 0      ; fill with zeros up to MBR signature
+   324                                  
+   325 000000A6 55AA                                dw 0x0aa55      ; write aa55 in bytes 511,512 to indicate
+   326                                                              ; that it is a boot sector. 
+   327                                  
+   328                                  idt equ 0x6000              ; use some of the free memory below us
+   329                                  idt_end equ idt+48*8        ; 32 sw + 16 remapped hw vectors
+   330                                  
+   331                                  stack_loc  equ 0x7000
+   332                                  stack_size equ 1024
+   333                                  
+   334                                  datasize equ ($-datastart)
+   335                                  
+   336                                  kend :
