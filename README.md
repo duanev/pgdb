@@ -3,6 +3,10 @@ Python GDB RDP client (replaces gdb for QEMU tcp debug)
 
 See READMEs in the example directories for quick starts.
 
+PGDB provides source level debugging for NASM built ROMS and kernels.
+Some support is also available for the GCC tool chain.
+
+
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
 
            h - toggles visibility of context sensitive help
