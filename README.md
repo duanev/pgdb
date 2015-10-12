@@ -57,6 +57,6 @@ better docs coming soon (I promise!)
 
 
 Donations gladly accepted :)
-email: duanev at gmail
-bitcoin: 1MhLdkqstABtGGTuw1rr66Xytg1nZpAKvk
+    email: duanev at gmail
+    bitcoin: 1MhLdkqstABtGGTuw1rr66Xytg1nZpAKvk
 
