@@ -1,0 +1,12 @@
+
+examples/qemu/i386/oz-x86-32-asm-001/oz_fd                  -diff
+examples/qemu/i386/oz-x86-32-asm-001/oz_fd.lst              -diff
+examples/qemu/i386/oz-x86-32-asm-001/oz_fd.map              -diff
+examples/qemu/i386/oz-x86-32-asm-001/oz_usb                 -diff
+examples/qemu/i386/oz-x86-32-asm-001/oz_usb.lst             -diff
+examples/qemu/i386/oz-x86-32-asm-001/oz_usb.map             -diff
+examples/qemu/arm-versatilepb/hello_world/startup.lst       -diff
+examples/qemu/arm-versatilepb/hello_world/test.bin          -diff
+examples/qemu/arm-versatilepb/hello_world/test.elf          -diff
+examples/qemu/arm-versatilepb/hello_world/test.lst          -diff
+examples/qemu/arm-versatilepb/hello_world/test.map          -diff
