@@ -1,0 +1,19 @@
+
+startup.o:     file format elf32-littlearm
+
+
+Disassembly of section .text:
+
+00000000 <_Reset>:
+.global _Reset
+_Reset:
+ LDR sp, =stack_top
+   0:	e59fd004 	ldr	sp, [pc, #4]	; c <_Reset+0xc>
+ BL c_entry
+   4:	ebfffffe 	bl	0 <c_entry>
+ B .
+   8:	eafffffe 	b	8 <_Reset+0x8>
+.global _Reset
+_Reset:
+ LDR sp, =stack_top
+   c:	00000000 	.word	0x00000000

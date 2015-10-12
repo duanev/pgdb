@@ -1,0 +1,62 @@
+
+test.o:     file format elf32-littlearm
+
+
+Disassembly of section .text:
+
+00000000 <print_uart0>:
+
+volatile unsigned int * const UART0DR = (unsigned int *)0x101f1000;
+ 
+void
+print_uart0(const char *s)
+{
+   0:	e52db004 	push	{fp}		; (str fp, [sp, #-4]!)
+   4:	e28db000 	add	fp, sp, #0
+   8:	e24dd00c 	sub	sp, sp, #12
+   c:	e50b0008 	str	r0, [fp, #-8]
+    while (*s) {
+  10:	ea000006 	b	30 <print_uart0+0x30>
+        *UART0DR = (unsigned int)(*s);
+  14:	e59f2034 	ldr	r2, [pc, #52]	; 50 <print_uart0+0x50>
+  18:	e51b3008 	ldr	r3, [fp, #-8]
+  1c:	e5d33000 	ldrb	r3, [r3]
+  20:	e5823000 	str	r3, [r2]
+        s++;
+  24:	e51b3008 	ldr	r3, [fp, #-8]
+  28:	e2833001 	add	r3, r3, #1
+  2c:	e50b3008 	str	r3, [fp, #-8]
+volatile unsigned int * const UART0DR = (unsigned int *)0x101f1000;
+ 
+void
+print_uart0(const char *s)
+{
+    while (*s) {
+  30:	e51b3008 	ldr	r3, [fp, #-8]
+  34:	e5d33000 	ldrb	r3, [r3]
+  38:	e3530000 	cmp	r3, #0
+  3c:	1afffff4 	bne	14 <print_uart0+0x14>
+        *UART0DR = (unsigned int)(*s);
+        s++;
+    }
+}
+  40:	e1a00000 	nop			; (mov r0, r0)
+  44:	e24bd000 	sub	sp, fp, #0
+  48:	e49db004 	pop	{fp}		; (ldr fp, [sp], #4)
+  4c:	e12fff1e 	bx	lr
+  50:	101f1000 	.word	0x101f1000
+
+00000054 <c_entry>:
+ 
+void
+c_entry()
+{
+  54:	e92d4800 	push	{fp, lr}
+  58:	e28db004 	add	fp, sp, #4
+    print_uart0("Hello world!\n");
+  5c:	e59f0008 	ldr	r0, [pc, #8]	; 6c <c_entry+0x18>
+  60:	ebfffffe 	bl	0 <print_uart0>
+}
+  64:	e1a00000 	nop			; (mov r0, r0)
+  68:	e8bd8800 	pop	{fp, pc}
+  6c:	00000004 	.word	0x00000004
