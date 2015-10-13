@@ -38,7 +38,7 @@ breakpoint command help:
     The white address is the next valid instruction pointer location
     following the *focus point* on the source window (fixed at 3/4
     the way down the screen).  The address highlighted in yellow is
-    the current cpus current IP.
+    the current cpu's current IP.
 
 memory window address help:
     Memory addresses can be simple expressions
@@ -57,6 +57,7 @@ better docs coming soon (I promise!)
 
 
 Donations gladly accepted :)
+
     email: duanev at gmail
-    bitcoin: 1MhLdkqstABtGGTuw1rr66Xytg1nZpAKvk
+    bitcoin: 16yQJg1fXCvVUETQVpSoxLAwNPKXKRYvXN
 

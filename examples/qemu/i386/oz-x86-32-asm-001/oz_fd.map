@@ -34,11 +34,11 @@ Real              Virtual           Name
             7C24              7C24  int_handler_timer
             7C4C              7C4C  int_handler_kbd
             7C52              7C52  main
-            7C9C              7C9C  flush_ip1
-            7D40              7D40  idle
-            7D43              7D43  puts_vga_rm
-            7D48              7D48  puts_vga_rm_loop
-            7D56              7D56  puts_vga_rm_done
+            7C98              7C98  flush_ip1
+            7D3C              7D3C  idle
+            7D3F              7D3F  puts_vga_rm
+            7D44              7D44  puts_vga_rm_loop
+            7D52              7D52  puts_vga_rm_done
 
 ---- Section .data ------------------------------------------------------------
 

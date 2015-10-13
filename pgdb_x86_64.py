@@ -1,5 +1,5 @@
 #
-# PGDB x86 32bit architecture module
+# PGDB x86 64bit architecture module
 #
 
 """
@@ -43,21 +43,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # history:
 #   2015/10/12 - v0.05 - djv - released
 
-version = "PGDB x86_32 v0.01 2015/10/12"
+version = "PGDB x86_64 v0.01 2015/10/12"
 
-name = 'i386'
+name = 'x86_64'
 
 # The length of the rdp 'g' register dump which is likely not
 # the best way to tell which architecture qemu is emulating
-gspec_len = 616
+gspec_len = 1072
 
 # PGDB can switch personalities mid-stream (thanks to module re-load).
 # If this architecture knows about an alter ego with a different register
 # dump length, return the name of that alter ego and PGDB will switch.
 
 def alter_ego(n):
-    if n == 1072:
-        return 'x86_64'
+    if n == 616:
+        return 'i386'
     return None
 
 
@@ -68,18 +68,27 @@ def alter_ego(n):
 # order, as well as parsing specific register data from
 # the gdb cmd response string.
 
+    R_EAX, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI, R_EBP, R_ESP,
+    8, 9, 10, 11, 12, 13, 14, 15
+
 gspec = [
-    ['eax',     0,   8], ['ebx',    24,  32], ['ecx',     8,  16], ['edx',    16,  24],
-    ['edi',    56,  64], ['esi',    48,  56], ['ebp',    40,  48], ['flags',  72,  80],
-    ['cs',     80,  88], ['eip',    64,  72], ['ss',     88,  96], ['esp',    32,  40],
-    ['ds',     96, 104], ['es',    104, 112], ['fs',    112, 120], ['gs',    120, 128],
-    ['st0',   128, 148], ['st1',   148, 168], ['st2',   168, 188], ['st3',   188, 208],
-    ['st4',   208, 228], ['st5',   228, 248], ['st6',   248, 268], ['st7',   268, 288],
-    ['fctrl', 288, 296], ['fstat', 296, 304], ['ftag',  304, 312], ['fiseg', 312, 320],
-    ['fioff', 320, 328], ['foseg', 328, 336], ['fooff', 336, 344], ['fop',   344, 352],
-    ['xmm0',  352, 384], ['xmm1',  384, 416], ['xmm2',  416, 448], ['xmm3',  448, 480],
-    ['xmm4',  480, 512], ['xmm5',  512, 544], ['xmm6',  544, 576], ['xmm7',  576, 608],
-    ['mxcsr', 608, 616]
+    ['rax',     0,  16], ['rbx',    16,  32], ['rcx',    32,  48], ['rdx',    48,  64],
+    ['rsi',    64,  80], ['rdi',    80,  96], ['rbp',    96, 112], ['rsp',   112, 128],
+    ['r8',    128, 144], ['r9',    144, 160], ['r10',   160, 176], ['r11',   176, 192],
+    ['r12',   192, 208], ['r13',   208, 224], ['r14',   224, 240], ['r15',   240, 256],
+    ['rip',   256, 272], ['flags', 272, 288], ['cs',    288, 296], ['ds',    296, 304],
+    ['es',    304, 312], ['fs',    312, 320], ['gs',    320, 328], ['ss',    328, 336],
+# ok I know I botched the floating point offsets ... and ss if wrong too
+    ['st0',   336, 356], ['st1',   356, 376], ['st2',   376, 396], ['st3',   396, 416],
+    ['st4',   416, 436], ['st5',   436, 452], ['st6',   452, 462], ['st7',   462, 472],
+    ['st8',   472, 482], ['st9',   482, 492], ['st10',  492, 502], ['st11',  502, 512],
+    ['st12',  512, 522], ['st13',  522, 532], ['st14',  532, 542], ['st15',  542, 552],
+
+    ['xmm0',  552, 584], ['xmm1',  584, 616], ['xmm2',  616, 648], ['xmm3',  648, 680],
+    ['xmm4',  680, 712], ['xmm5',  712, 744], ['xmm6',  744, 776], ['xmm7',  776, 808],
+    ['xmm8',  808, 840], ['xmm9',  840, 872], ['xmm10', 872, 904], ['xmm11', 904, 936],
+    ['xmm12', 936, 968], ['xmm13', 968,1000], ['xmm14',1000,1032], ['xmm15',1032,1064],
+    ['mxcsr',1064,1072]
 ]
 
 
@@ -91,9 +100,8 @@ gspec = [
 #    else:
 #        return seg * 16 + off
 
-cpu_maxy = 7
-cpu_maxx = 61
-
+cpu_maxy = 11
+cpu_maxx = 63
 
 # Cpu methods
 
@@ -106,31 +114,40 @@ def cpu_reg_update(self, newregs):
         attr = '' if new == old else '\a'
         strs.append((y, x, attr + fmt % new))
 
+# I'm not completely happy with this layout ...
+
     # the zero row is the title row
     rdiff(0, 10, ' %04x:',      'cs',    newregs, self.regs)
-    rdiff(0, 16, '%08x ',       'eip',   newregs, self.regs)
-    rdiff(1,  2, 'eax %08x',    'eax',   newregs, self.regs)
-    rdiff(1, 17, 'ebx %08x',    'ebx',   newregs, self.regs)
-    rdiff(1, 32, 'ecx %08x',    'ecx',   newregs, self.regs)
-    rdiff(1, 47, 'edx %08x',    'edx',   newregs, self.regs)
-    rdiff(2,  2, 'edi %08x',    'edi',   newregs, self.regs)
-    rdiff(2, 17, 'esi %08x',    'esi',   newregs, self.regs)
-    rdiff(2, 32, 'ebp %08x',    'ebp',   newregs, self.regs)
-    rdiff(2, 47, 'esp %08x',    'esp',   newregs, self.regs)
-    rdiff(3,  3, 'ds     %04x', 'ds',    newregs, self.regs)
-    rdiff(3, 18, 'es     %04x', 'es',    newregs, self.regs)
-    rdiff(3, 30, 'mxcsr %08x',  'mxcsr', newregs, self.regs)
-    rdiff(3, 48, 'ss     %04x', 'ss',    newregs, self.regs)
-    rdiff(4,  3, 'fs     %04x', 'fs',    newregs, self.regs)
-    rdiff(4, 18, 'gs     %04x', 'gs',    newregs, self.regs)
-    rdiff(4, 30, 'fctrl %08x',  'fctrl', newregs, self.regs)
-    rdiff(4, 45, 'flags %08x',  'flags', newregs, self.regs)
+    rdiff(0, 16, '%016x ',      'rip',   newregs, self.regs)
+    rdiff(1,  2, 'rax %016x',   'rax',   newregs, self.regs)
+    rdiff(1, 24, 'rbx %016x',   'rbx',   newregs, self.regs)
+    rdiff(2,  2, 'rcx %016x',   'rcx',   newregs, self.regs)
+    rdiff(2, 24, 'rdx %016x',   'rdx',   newregs, self.regs)
+    rdiff(2, 54, 'ds %04x',     'ds',    newregs, self.regs)
+    rdiff(3,  2, 'rdi %016x',   'rdi',   newregs, self.regs)
+    rdiff(3, 24, 'rsi %016x',   'rsi',   newregs, self.regs)
+    rdiff(3, 54, 'es %04x',     'es',    newregs, self.regs)
+    rdiff(4,  2, 'rbp %016x',   'rbp',   newregs, self.regs)
+    rdiff(4, 24, 'rsp %016x',   'rsp',   newregs, self.regs)
+    rdiff(4, 54, 'ss %04x',     'ss',    newregs, self.regs)
+    rdiff(5,  2, 'r08 %016x',   'r8',    newregs, self.regs)
+    rdiff(5, 24, 'r09 %016x',   'r9',    newregs, self.regs)
+    rdiff(5, 54, 'fs %04x',     'fs',    newregs, self.regs)
+    rdiff(6,  2, 'r10 %016x',   'r10',   newregs, self.regs)
+    rdiff(6, 24, 'r11 %016x',   'r11',   newregs, self.regs)
+    rdiff(6, 54, 'gs %04x',     'gs',    newregs, self.regs)
+    rdiff(7,  2, 'r12 %016x',   'r12',   newregs, self.regs)
+    rdiff(7, 24, 'r13 %016x',   'r13',   newregs, self.regs)
+    rdiff(7, 47, 'mxcsr %08x',  'mxcsr', newregs, self.regs)
+    rdiff(8,  2, 'r14 %016x',   'r14',   newregs, self.regs)
+    rdiff(8, 24, 'r15 %016x',   'r15',   newregs, self.regs)
+    rdiff(8, 46, 'flags %09x',  'flags', newregs, self.regs)
 
     # lol, messy, but cool
     x = newregs['flags']
     fla = '%02x' % (x&0xff) + '%02x' % ((x&0xff00)>>8) + '%02x00' % ((x&0xff0000)>>16)
-    flstr = ds_print_one(fla, ds_eflags)[0]
-    strs.append((5, 14, '%45s' % flstr))
+    flstr = ds_print_one(fla, ds_rflags)[0]
+    strs.append((9, 16, '%45s' % flstr))
 
     # TODO: used this for XMM and ST regs - only displayed the non-zero
     #       regs - but it's all too much - need a slick way to deal with
@@ -155,8 +172,8 @@ def get_seg_register(self):
     return None
 
 def get_ip_register(self):
-    if 'eip' in self.regs:
-        return self.regs['eip']
+    if 'rip' in self.regs:
+        return self.regs['rip']
     return None
 
 
@@ -171,9 +188,8 @@ def get_ip_bpfmt(self):
     # need to convert seg:off to a physical or logical memory address
     #if self.regs['cs']:
     #    rval += '%x' % self.regs['cs']
-    rval += '%x' % self.regs['eip']
+    rval += '%x' % self.regs['rip']
     return rval.lower()
-
 
 
 
@@ -306,7 +322,7 @@ def ds_print(data, ds_spec, start_addr):
     return strs
 
 # ------------------------------------------------
-# define the data structures specific to i386
+# define the data structures specific to x86_64
 
 # gdt: swdev3a s3.4.5 pg 3-13 fig 3-8
 #      code and data:  swdev3a s3.4.5.1 pg 3-17
@@ -394,8 +410,8 @@ _tss_els = (
 ds_tss = DS('tss', 'task state', 104, 15, 30, '\b---- tss @ 0x%x', _tss_els)
 
 
-# eflags: swdev1 s3.4.3  pg 3-21 fig 3-8
-_eflags_els = (
+# rflags: swdev1 s3.4.3  pg 3-21 fig 3-8
+_rflags_els = (
     DSFLD(0, 0, '_',[DSBLD(0,2,0xffffff,0)],
         # print the flags left to right
         [DSVAL(0x200000,0x200000,'id '),
@@ -412,7 +428,7 @@ _eflags_els = (
          DSVAL(0x000004,0x000004,'p'), DSVAL(0x000001,0x000001,'c')]),
 )
 
-ds_eflags = DS('flags', 'cpu 32bit flags', 4, 1, 45, None, _eflags_els)
+ds_rflags = DS('flags', 'cpu 32bit flags', 4, 1, 45, None, _rflags_els)
 
 
 # sample_gdt = "0000000000000000ffff0000009acf00ffff00000093cf00ff1f0010009300009f0f00800b930000ffff0000009a0f00ffff000000920f006800808d00890000"
@@ -433,5 +449,5 @@ ds_eflags = DS('flags', 'cpu 32bit flags', 4, 1, 45, None, _eflags_els)
 #     for ln in ds_print_one(sample_tss, ds_tss):
 #         print(ln)
 
-data_structs = [ds_gdt, ds_tss, ds_eflags]
+data_structs = [ds_gdt, ds_tss, ds_rflags]
 

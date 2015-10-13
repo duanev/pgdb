@@ -140,8 +140,8 @@ main :
     mov  byte [gs:1],0xE    ; turn the first two chars yellow
     mov  byte [gs:3],0xE
 
-    mov  ah,0x00            ; Fn 00h of int 16h: read next character
-    int  0x16               ; wait for the user to respond...
+;   mov  ah,0x00            ; Fn 00h of int 16h: read next character
+;   int  0x16               ; wait for the user to respond...
 
     lgdt [gdtr]             ; initialize the gdt
     mov  eax,cr0

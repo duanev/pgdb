@@ -212,7 +212,7 @@ Help_text_breakpoints = \
  The white address is the next valid instruction pointer location
  following the *focus point* on the source window (fixed at 3/4
  the way down the screen).  The address highlighted in yellow is
- the current cpus current IP."""
+ the current cpu's current IP."""
 
 Help_text_mem_address = \
 """
@@ -241,8 +241,8 @@ import importlib
 
 Arch = None
 Arch_name = 'i386'          # qemu-i386 doesn't offer any .xml files
-                            # oh oh, qemu-alpha doesn't either,
-                            # nor do the sparcs -- put your fav default here
+                            # oh oh, qemu-alpha doesn't either, nor do the
+                            # sparcs -- gees, put your fav default here!
 
 Host_port = ('0.0.0.0', 1234)
 
@@ -296,11 +296,14 @@ def load_arch_module():
 
 class FakeArch(object):
     name = 'ERSATZ'
+    gspec = []
     gspec_len = 0
+    cpu_maxy = cpu_maxx = 4
 
     def generate_gspec(self, tree): pass
     def get_seg_register(self, x): return None
     def get_ip_register(self, x): return None
+    def cpu_reg_update(self, x, y): return []
 
 # ----------------------------------------------------------------------------
 # gdb client support
@@ -620,14 +623,25 @@ class GdbClient(asyncore.dispatcher):
             mem.refetch()
 
     def process_regs(self):
+        global Arch, Arch_name
         if len(self.rbuf) != Arch.gspec_len:
-            err = '**** expected %d hex digits for the %s cpu architecture' % (
-                            Arch.gspec_len, Arch.name)
-            err += ' - but received %d (wrong cpu architecture) ****' % (
-                            len(self.rbuf))
-            update_status(err, CPerr)
-            Log.write(err.replace('-', '****\n****') + '\n', attr=CPerr)
-            return
+            new_name = Arch.alter_ego(len(self.rbuf))
+            if new_name:
+                Arch = None
+                Arch_name = new_name
+                load_arch_module()      # presto changeo ...
+                # blank all the cpu windows
+                for cpu in Cpus.keys():
+                    Cpus[cpu].resize(Arch.cpu_maxy, Arch.cpu_maxx)
+
+            else:
+                err = '**** expected %d hex digits for the %s cpu architecture' % (
+                                Arch.gspec_len, Arch.name)
+                err += ' - but received %d (wrong cpu architecture) ****' % (
+                                len(self.rbuf))
+                update_status(err, CPerr)
+                Log.write(err.replace('-', '****\n****') + '\n', attr=CPerr)
+                return
 
         th = self.current_thread
         i = n = 0
@@ -1124,6 +1138,14 @@ class Movable_panel(object):
     def hide(self):
         self.panel.hide()
         self.visible = False
+
+    def resize(self, y, x):
+        self.win.resize(y, x)
+        self.win.move(1, 0)
+        self.win.clrtobot()
+        self.win.attron(CPbdr)
+        self.win.box()
+        self.win.attron(CPbdr)
 
     def toggle(self):
         if self.visible:

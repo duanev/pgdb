@@ -135,82 +135,82 @@
    135                                  
    136 00000072 BE[3400]                    mov  si,bootmsg
    137 00000075 31DB                        xor  bx,bx
-   138 00000077 E8C900                      call puts_vga_rm
+   138 00000077 E8C500                      call puts_vga_rm
    139                                                              ; puts_vga_rm leaves gs pointing at video mem
    140 0000007A 65C60601000E                mov  byte [gs:1],0xE    ; turn the first two chars yellow
    141 00000080 65C60603000E                mov  byte [gs:3],0xE
    142                                  
-   143 00000086 B400                        mov  ah,0x00            ; Fn 00h of int 16h: read next character
-   144 00000088 CD16                        int  0x16               ; wait for the user to respond...
+   143                                  ;   mov  ah,0x00            ; Fn 00h of int 16h: read next character
+   144                                  ;   int  0x16               ; wait for the user to respond...
    145                                  
-   146 0000008A 0F0116[2800]                lgdt [gdtr]             ; initialize the gdt
-   147 0000008F 0F20C0                      mov  eax,cr0
-   148 00000092 0C01                        or   al,0x01            ; set the protected mode bit (lsb of cr0)
-   149 00000094 0F22C0                      mov  cr0,eax
-   150 00000097 EA[9C00]0800                jmp  codesel:flush_ip1  ; flush the cpu instruction pipeline
+   146 00000086 0F0116[2800]                lgdt [gdtr]             ; initialize the gdt
+   147 0000008B 0F20C0                      mov  eax,cr0
+   148 0000008E 0C01                        or   al,0x01            ; set the protected mode bit (lsb of cr0)
+   149 00000090 0F22C0                      mov  cr0,eax
+   150 00000093 EA[9800]0800                jmp  codesel:flush_ip1  ; flush the cpu instruction pipeline
    151                                  flush_ip1: 
    152                                  bits 32                     ; instructions after this point are 32bit
    153                                  
-   154 0000009C 66B81000                    mov  ax,datasel   
-   155 000000A0 8ED8                        mov  ds,ax              ; initialize the data segments
-   156 000000A2 8EC0                        mov  es,ax
-   157 000000A4 66B81800                    mov  ax,stacksel        ; setup a restricted stack segment
-   158 000000A8 8ED0                        mov  ss,ax
+   154 00000098 66B81000                    mov  ax,datasel   
+   155 0000009C 8ED8                        mov  ds,ax              ; initialize the data segments
+   156 0000009E 8EC0                        mov  es,ax
+   157 000000A0 66B81800                    mov  ax,stacksel        ; setup a restricted stack segment
+   158 000000A4 8ED0                        mov  ss,ax
    159                                  
    160                                      ; re-program the 8259's to move the hardware vectors
    161                                      ; out of the soft int range ... what were people thinking!
    162                                  
-   163 000000AA B011                        mov  al,0x11
-   164 000000AC E620                        out  0x20,al            ; init the 1st 8259
-   165 000000AE B011                        mov  al,0x11
-   166 000000B0 E6A0                        out  0xA0,al            ; init the 2nd 8259
-   167 000000B2 B020                        mov  al,0x20
-   168 000000B4 E621                        out  0x21,al            ; base the 1st 8259 at 0x20
-   169 000000B6 B028                        mov  al,0x28
-   170 000000B8 E6A1                        out  0xA1,al            ; base the 2nd 8259 at 0x28
-   171 000000BA B004                        mov  al,0x04
-   172 000000BC E621                        out  0x21,al            ; set 1st 8259 as master
-   173 000000BE B002                        mov  al,0x02
-   174 000000C0 E6A1                        out  0xA1,al            ; set 2nd 8259 as slave
-   175 000000C2 B001                        mov  al,0x01
-   176 000000C4 E621                        out  0x21,al
-   177 000000C6 B001                        mov  al,0x01
-   178 000000C8 E6A1                        out  0xA1,al
-   179 000000CA B000                        mov  al,0x00
-   180 000000CC E621                        out  0x21,al
-   181 000000CE B000                        mov  al,0x00
-   182 000000D0 E6A1                        out  0xA1,al
+   163 000000A6 B011                        mov  al,0x11
+   164 000000A8 E620                        out  0x20,al            ; init the 1st 8259
+   165 000000AA B011                        mov  al,0x11
+   166 000000AC E6A0                        out  0xA0,al            ; init the 2nd 8259
+   167 000000AE B020                        mov  al,0x20
+   168 000000B0 E621                        out  0x21,al            ; base the 1st 8259 at 0x20
+   169 000000B2 B028                        mov  al,0x28
+   170 000000B4 E6A1                        out  0xA1,al            ; base the 2nd 8259 at 0x28
+   171 000000B6 B004                        mov  al,0x04
+   172 000000B8 E621                        out  0x21,al            ; set 1st 8259 as master
+   173 000000BA B002                        mov  al,0x02
+   174 000000BC E6A1                        out  0xA1,al            ; set 2nd 8259 as slave
+   175 000000BE B001                        mov  al,0x01
+   176 000000C0 E621                        out  0x21,al
+   177 000000C2 B001                        mov  al,0x01
+   178 000000C4 E6A1                        out  0xA1,al
+   179 000000C6 B000                        mov  al,0x00
+   180 000000C8 E621                        out  0x21,al
+   181 000000CA B000                        mov  al,0x00
+   182 000000CC E6A1                        out  0xA1,al
    183                                  
    184                                      ; ---- debug marker
-   185 000000D2 66B82000                    mov  ax,videosel        ; point gs at video memory
-   186 000000D6 8EE8                        mov  gs,ax
-   187 000000D8 65C605010000000A            mov  byte [gs:1],0xA    ; turn the first two chars green
-   188 000000E0 65C605030000000A            mov  byte [gs:3],0xA
+   185 000000CE 66B82000                    mov  ax,videosel        ; point gs at video memory
+   186 000000D2 8EE8                        mov  gs,ax
+   187 000000D4 65C605010000000A            mov  byte [gs:1],0xA    ; turn the first two chars green
+   188 000000DC 65C605030000000A            mov  byte [gs:3],0xA
    189                                  
    190                                      ; ---- setup interrupt handlers
    191                                  
-   192 000000E8 B8[24000000]                mov  eax,int_handler_timer
-   193 000000ED 66A300610000                mov  [idt+IRQA*8],ax
-   194 000000F3 66C705026100000800          mov  word [idt+IRQA*8+2],codesel
-   195 000000FC 66C70504610000008E          mov  word [idt+IRQA*8+4],0x8E00
-   196 00000105 C1E810                      shr  eax,16
-   197 00000108 66A306610000                mov  [idt+IRQA*8+6],ax
+   192 000000E4 B8[24000000]                mov  eax,int_handler_timer
+   193 000000E9 66A300610000                mov  [idt+IRQA*8],ax
+   194 000000EF 66C705026100000800          mov  word [idt+IRQA*8+2],codesel
+   195 000000F8 66C70504610000008E          mov  word [idt+IRQA*8+4],0x8E00
+   196 00000101 C1E810                      shr  eax,16
+   197 00000104 66A306610000                mov  [idt+IRQA*8+6],ax
    198                                  
-   199 0000010E B8[4C000000]                mov  eax,int_handler_kbd
-   200 00000113 66A308610000                mov  [idt+IRQB*8],ax
-   201 00000119 66C7050A6100000800          mov  word [idt+IRQB*8+2],codesel
-   202 00000122 66C7050C610000008E          mov  word [idt+IRQB*8+4],0x8E00
-   203 0000012B C1E810                      shr  eax,16
-   204 0000012E 66A30E610000                mov  [idt+IRQB*8+6],ax
+   199 0000010A B8[4C000000]                mov  eax,int_handler_kbd
+   200 0000010F 66A308610000                mov  [idt+IRQB*8],ax
+   201 00000115 66C7050A6100000800          mov  word [idt+IRQB*8+2],codesel
+   202 0000011E 66C7050C610000008E          mov  word [idt+IRQB*8+4],0x8E00
+   203 00000127 C1E810                      shr  eax,16
+   204 0000012A 66A30E610000                mov  [idt+IRQB*8+6],ax
    205                                  
-   206 00000134 0F011D[2E000000]            lidt [idtr]                     ; install the idt
-   207 0000013B 66BC0004                    mov  sp,stack_size              ; initialize the stack
+   206 00000130 0F011D[2E000000]            lidt [idtr]                     ; install the idt
+   207 00000137 66BC0004                    mov  sp,stack_size              ; initialize the stack
    208                                  
    209                                  
-   210 0000013F FB                          sti
+   210 0000013B FB                          sti
    211                                  idle :
-   212 00000140 F4                          hlt                     ; wait for interrupts
-   213 00000141 EBFD                        jmp  idle
+   212 0000013C F4                          hlt                     ; wait for interrupts
+   213 0000013D EBFD                        jmp  idle
    214                                  
    215                                  ; ----------------------------
    216                                  ;   puts_vga_rm - write a null delimited string to the VGA controller
@@ -223,20 +223,20 @@
    223                                  bits 16
    224                                  
    225                                  puts_vga_rm :
-   226 00000143 B800B8                      mov  ax,0xb800      ; point gs at video memory
-   227 00000146 8EE8                        mov  gs,ax
+   226 0000013F B800B8                      mov  ax,0xb800      ; point gs at video memory
+   227 00000142 8EE8                        mov  gs,ax
    228                                  puts_vga_rm_loop :
-   229 00000148 AC                          lodsb
-   230 00000149 3C00                        cmp  al,0
-   231 0000014B 7409                        jz   puts_vga_rm_done
-   232 0000014D 658807                      mov  [gs:bx],al
-   233 00000150 6643                        inc  ebx
-   234 00000152 6643                        inc  ebx
-   235 00000154 EBF2                        jmp  puts_vga_rm_loop
+   229 00000144 AC                          lodsb
+   230 00000145 3C00                        cmp  al,0
+   231 00000147 7409                        jz   puts_vga_rm_done
+   232 00000149 658807                      mov  [gs:bx],al
+   233 0000014C 6643                        inc  ebx
+   234 0000014E 6643                        inc  ebx
+   235 00000150 EBF2                        jmp  puts_vga_rm_loop
    236                                  puts_vga_rm_done :
-   237 00000156 C3                          ret
+   237 00000152 C3                          ret
    238                                  
-   239 00000157 90                      align 8                     ; only need 4 but 8 looks nicer when debugging
+   239 00000153 90<rept>                align 8                     ; only need 4 but 8 looks nicer when debugging
    240                                  codesize equ ($-codestart)
    241                                  
    242                                  ; ---------------------------------------------------------
