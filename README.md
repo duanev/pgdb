@@ -6,7 +6,7 @@ See READMEs in the example directories for quick starts.
 PGDB provides source level debugging for NASM built ROMS and kernels.
 Some support is also available for the GCC tool chain.
 
-<img src=http://imgur.com/sq0o6tf>
+![ScreenShot](http://imgur.com/sq0o6tf)
 
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
 
