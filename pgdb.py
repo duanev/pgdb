@@ -2141,6 +2141,11 @@ def inputmode_normal(c):
         Prompt = 'set watchpoint: '
         update_status(Prompt + Text, CPnrm)
         return inputmode_watchpoint
+    elif ch and ch in 'x':
+        Text = ''
+        Prompt = 'modify memory <addr>,<byte><byte>... : '
+        update_status(Prompt + Text, CPnrm)
+        return inputmode_memwrite
     elif ch and ch in '?/':
         Text = ''
         Prompt = 'text search: '
@@ -2368,12 +2373,12 @@ def inputmode_search(c):
     return inputmode_search
 
 def inputmode_address(c):
-    # an undocumented feature with marginal use.  IFF your .lst file
-    # happens to be a monolithic collection of all your source then
-    # there is a chance the code addresses will monotonically increasing
-    # and a search for a specific address may work.  ip_search() was
-    # designed specifically for instruction pointers but maybe user
-    # queries can work too ... hence the 'a' command.
+    # a feature with perhaps marginal use.  IFF your .lst file happens to
+    # be a monolithic collection of all your source then there is a chance
+    # the code addresses will be monotonically increasing and a search for
+    # a specific address may work.  ip_search() was designed specifically
+    # for instruction pointers but maybe user queries can work too ...
+    # hence the 'a' command.
     global Text
 
     ch = chr(c) if 31 < c < 128 else 0
@@ -2400,6 +2405,32 @@ def inputmode_address(c):
             Text += ch
             update_status(Prompt + Text + note, CPnrm)
     return inputmode_address
+
+def inputmode_memwrite(c):
+    # hacked in cause I needed it quickly ... no error checking,
+    # use the log window to see if you got it right.
+    global Text
+
+    ch = chr(c) if 31 < c < 128 else 0
+    note = '   **** (note: ESC to abort input) '
+    if 0 < c < 128:
+        if c == 0xa:
+            addr, byts = Text.split(',', 1)
+            length = len(byts)//2
+            cmd = 'M%s,%x:%s' % (addr, length, byts)
+            Gdbc.queue_cmd(cmd)
+            return inputmode_normal
+        elif c == 0x7f:         # back
+            Text = Text[:-1]
+            update_status(Prompt + Text + note, CPnrm)
+        elif c == 0x1b:         # esc
+            Search_str = None
+            update_status(' ', CPnrm)
+            return inputmode_normal
+        elif ch:
+            Text += ch
+            update_status(Prompt + Text + note, CPnrm)
+    return inputmode_memwrite
 
 # ----------------------------------------------------------------------------
 # main
