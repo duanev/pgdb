@@ -7,6 +7,7 @@ PGDB provides source level debugging for NASM built ROMS and kernels.
 Some support is also available for the GCC tool chain.
 
 ![ScreenShot](http://imgur.com/sq0o6tf)
+<img src="http://imgur.com/sq0o6tf" title="ScreenShot">
 
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
 
@@ -23,6 +24,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
            v - clear all breakpoints and watchpoints
            m - new memory window (prompts for address)
            M - destroy active memory window
+           a - lookup a hex address in current source window
          s/S - single step active cpu / all cpus
          j/J - jump active cpu / all cpus to highlight addr
          c/C - continue active cpu / all cpus

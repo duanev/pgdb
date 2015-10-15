@@ -141,6 +141,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       but it doesn't do cause any rdp traffic)
 #   - add a general purpose disassembler per architecture so source files
 #       don't need to be loaded
+#   - add a -structs command line flag to load data structures that are not
+#       tied to a specific architecture.  aka:
+#           $ pgdb -arch x86_64 -structs linux4.0.7,mydriver,yourapp
 #
 # future:
 #   - properly define source contexts and what they mean.  as I've added
@@ -148,23 +151,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       I used to support multiple source contexts have become strained.
 #       restricting symbol lookups to the source context in which they were
 #       defined is good in some cases, bad in others.
-#       ex: if there are no overlapping address spaces then we of course
-#       want to be able to say 'show me mem addr X' or 'break at Y' and
-#       pgdb does the right thing regardless of which source file is being
-#       displayed.  but if there are overlapping spaces, which X or Y do you
-#       mean?  for multiple spaces, clearly, we have to remain source context
+#       ex: if there are no overlapping address spaces for all the code we
+#       are working on, then we of course want to be able to say 'show me
+#       mem addr X' or 'break at Y' and pgdb does the right thing regardless
+#       of which source file is being displayed.  but if there are
+#       overlapping spaces, then which X or Y in what space do you mean?
+#       for multiple spaces, clearly, we have to remain source context
 #       sensitive.  but then users have to select the correct source window
 #       before mem windows or breaks or watches can be set ...
-#       or maybe pgdb should prompt the user to change contexts when a
-#       symbol not defined in the current context exists in another?
+#       or maybe pgdb can prompt the user to change contexts when a symbol
+#       not defined in the current context exists in another?
 #       and shouldn't some memory windows be bound to the source contexts?
 #       if we are tracing through a kernel there are kernel data structures
-#       and there are user mode data structures - should they all be on the
-#       screen at once?
-#   - add a -structs command line flag to load data structures that are not
-#       tied to a specific architecture.
-#
-#       pgdb -arch x86_64 -structs linux4.0.7,mydriver,yourapp
+#       and there are user mode data structures - they shouldn't all be on
+#       the screen at once.
+#   - what is being said here for the objdump and the gcc tool chain?
+#       or for listing files in general?  perhaps there is a use for an
+#       integrated listing/map file (and I don't mean that the symbols are
+#       simply listed at the end) - that is built from both the object files
+#       and a map file - maybe a *single* text file detailing all post-link
+#       addresses, machine opcodes, and interlaced source code is a way to
+#       improve debugging productivity - as opposed to tools that try to
+#       integrate multiple files ...
 #
 # gdb remote debug protocol changes that are BADLY needed:
 #   - the response string must include the command to which it is replying
@@ -181,11 +189,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Version = "PGDB v0.05 2015/10/12"
 
+# We're fresh out of lines for the main help window - too many keys
+# to document.  (Note, we have to fit in 24 lines)  I can't seem to
+# get rid of the last blank line either.
+
 Help_text_main = \
 """      h - toggles visibility of context sensitive help
        l - toggles visibility of the log window
      tab - rotates the active window
-    back - makes no window active, start rotation at top
        r - reorder windows (useful after resize)
  <enter> - refresh window, if cpu make it active
    1-9,0 - select source window to display (twice to pin)
@@ -195,6 +206,7 @@ Help_text_main = \
        v - clear all breakpoints and watchpoints
        m - new memory window (prompts for address)
        M - destroy active memory window
+       a - lookup a hex address in current source window
      s/S - single step active cpu / all cpus
      j/J - jump active cpu / all cpus to highlight addr
      c/C - continue active cpu / all cpus

@@ -10,6 +10,10 @@
 ;
 ; requires: nasm-2.07  or later from: http://www.nasm.us
 ;
+; credits:
+;       many thanks to the folks at wiki.osdev.org who archive great info.
+;       http://wiki.osdev.org/Entering_Long_Mode_Directly
+;
 ; contributors:
 ;        djv - Duane Voth
 ;
