@@ -1103,6 +1103,12 @@ def match_src_file(fname, segs):
 
 class Movable_panel(object):
     def __init__(self, h,w, y,x, title):
+        sh,sw = Stdscr.getmaxyx()
+        if y+h > sh:
+            y = sh-h-2
+        if x+w > sw:
+            x = sw-w-2
+
         self.y = y
         self.x = x
         self.h = h
