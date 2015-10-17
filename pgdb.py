@@ -210,7 +210,7 @@ Help_text_main = \
    1-9,0 - select source window to display (twice to pin)
        / - text search source window (prompts for text)
        n - next text search
-     b/w - set a breakpoint/watchpoint (prompt for addr)
+     b/w - set a breakpoint/watchpoint (prompts for addr)
        v - clear all breakpoints and watchpoints
        m - new memory window (prompts for address)
        M - destroy active memory window
@@ -1836,7 +1836,7 @@ class Src(Background_panel):
         if self.ftype == 'nasmlst':         # 8 digits, uppercase hex
             if ip >= self.offset:
                 xx = ' %08X ' % (ip - self.offset)
-                Log.write('ip=%08x  xx=%s\n' % (ip, xx))
+                #Log.write('ip=%08x  xx=%s\n' % (ip, xx))
                 self.search(hilitetyp, xx, 16)
                 return
         elif self.ftype == 'objdump':
@@ -1942,7 +1942,7 @@ class Src(Background_panel):
                     continue
                 # precarious! depending on objdump to always print offsets
                 # with a colon in the 4th column :O
-                if self.lines[l][4] == ':':
+                if self.lines[l][4] == ':' and hexchk(self.lines[l][0:4]):
                     ip = self.lines[l][0:4].strip()
                     ipl = l
                     xs = 0
@@ -1956,7 +1956,6 @@ class Src(Background_panel):
             # ipl now should point to the first line of code below the focus
             # point and lbll,lbln document the .text label for that line of
             # code, compute the ip for the line of code
-            Log.write('++ lbln(%s) ip(%s)\n' % (lbln, ip), CPdbg)
             if lbln and ip != None:
                 fixup = lookup_fixup(lbln, self)
                 if not fixup:
@@ -1972,7 +1971,7 @@ class Src(Background_panel):
                     # the source file's base offset
                     fixup = self.offset
                 Nextip = '%x' % (fixup + int(ip, 16))
-                Log.write('++ nextip=' + Nextip + '\n', CPdbg)
+                #Log.write('++ nextip=' + Nextip + '\n', CPdbg)
 
         else:
             update_status('unsupported file type [%s]' % self.ftype, CPhi)
