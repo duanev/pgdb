@@ -1,0 +1,40 @@
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+                0x0000000040080000                . = 0x40080000
+
+.text           0x0000000040080000       0x40
+ *(.text)
+ .text          0x0000000040080000       0x40 startup.o
+                0x0000000040080000                _Reset
+
+.data           0x0000000040080040        0xd
+ *(.data)
+ .data          0x0000000040080040        0xd startup.o
+
+.bss            0x000000004008004d        0x0
+ *(.bss COMMON)
+ .bss           0x000000004008004d        0x0 startup.o
+                0x0000000040080050                . = ALIGN (0x8)
+                0x0000000040081050                . = (. + 0x1000)
+                0x0000000040081050                stack_top = .
+LOAD startup.o
+OUTPUT(test.elf elf64-littleaarch64)
+
+.debug_line     0x0000000000000000       0x43
+ .debug_line    0x0000000000000000       0x43 startup.o
+
+.debug_info     0x0000000000000000       0x67
+ .debug_info    0x0000000000000000       0x67 startup.o
+
+.debug_abbrev   0x0000000000000000       0x14
+ .debug_abbrev  0x0000000000000000       0x14 startup.o
+
+.debug_aranges  0x0000000000000000       0x30
+ .debug_aranges
+                0x0000000000000000       0x30 startup.o

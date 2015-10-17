@@ -167,17 +167,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       the screen at once.
 #   - what is being said here for the objdump and the gcc tool chain?
 #       or for listing files in general?  perhaps there is a use for an
-#       integrated listing/map file (and I don't mean that the symbols are
-#       simply listed at the end) - that is built from both the object files
-#       and a map file - maybe a *single* text file detailing all post-link
-#       addresses, machine opcodes, and interlaced source code is a way to
-#       improve debugging productivity - as opposed to tools that try to
-#       integrate multiple files ...
+#       *integrated* listing/map file (and I don't mean that the symbols are
+#       simply listed at the end) - that is built from all the object-lst
+#       files and a map file - maybe a *single* text file detailing all
+#       post-link addresses, machine opcodes, and interlaced source code is
+#       a way to improve debugging productivity - as opposed to tools that
+#       try to integrate multiple files ...
 #
 # gdb remote debug protocol changes that are BADLY needed:
 #   - the response string must include the command to which it is replying
 #       (solves race conditions for event driven designs that queue cmds)
-#   - return the control regs (gdt,ldt,cr3,etc!) c'mon!?  why just a subset?!
+#   - return the control regs (gdt,ldt,cr3,etc!) why just a subset!?
 #       could also easily return the complete gdt/ldt descriptors for the
 #       segment regs in protected mode too (would make our lives way easier)
 #
@@ -186,8 +186,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # history:
 #   2015/10/12 - v0.05 - djv - released
+#   2015/10/15 - v0.06 - djv - moved fads functions inside pgdb
 
-Version = "PGDB v0.05 2015/10/12"
+Version = "PGDB v0.06 2015/10/16"
 
 # We're fresh out of lines for the main help window - too many keys
 # to document.  (Note, we have to fit in 24 lines)  I can't seem to
@@ -213,7 +214,7 @@ Help_text_main = \
      q/Q - quit pgdb / and kill qemu also
     ctrl+arrows - move active window around screen
      ctrl+space - raise active window to the top
- ctrl+pageup/dn - scroll active window (ex: log,mem)
+ ctrl+pageup/dn - scroll active window (log,mem only)
  arrows,pageup,pagedn,home - scroll source window"""
 
 Help_text_breakpoints = \
@@ -292,6 +293,7 @@ if '-arch' in sys.argv:
     Arch_name = sys.argv.pop(idx)
 
 def load_arch_module():
+    # don't call this before the Log window has been defined.
     global Arch
     if Arch:
         return
@@ -301,6 +303,7 @@ def load_arch_module():
         Arch = importlib.import_module(fn)
         Log.write('Cpu architecture is ' + Arch.name + '\n', attr=CPok)
         Arch.Log = Log
+        Arch.DSfns = DSfns
     except:
         Arch = FakeArch()
         Log.write('unable to load %s\n' % fn, CPerr)
@@ -310,9 +313,11 @@ class FakeArch(object):
     name = 'ERSATZ'
     gspec = []
     gspec_len = 0
-    cpu_maxy = cpu_maxx = 4
+    cpu_maxy = 2
+    cpu_maxx = 6
 
     def generate_gspec(self, tree): pass
+    def alter_ego(self, n): return None
     def get_seg_register(self, x): return None
     def get_ip_register(self, x): return None
     def cpu_reg_update(self, x, y): return []
@@ -343,12 +348,12 @@ def dumpmem(s, addr, wth=16):
         # yield 'n' formatted hex bytes and 'n' characters per iteration
         for i in range(0, len(s), wth*2):           # break into lines
             seg = s[i:i+wth*2]
-            bytes = []
+            byts = []
             chrs  = ''
             for j in range(0, len(seg), 2):         # break into bytes
-                bytes.append(seg[j:j+2])
-                chrs  += prntabl(int(bytes[-1], 16))
-            yield i/2, bytes, chrs
+                byts.append(seg[j:j+2])
+                chrs  += prntabl(int(byts[-1], 16))
+            yield i//2, byts, chrs
 
     for n, hexline, chrline in bytegen(s, wth):
         rval.append('0x%08x  %-*s %s' % (addr+n, wth*3, ' '.join(hexline),
@@ -665,7 +670,7 @@ class GdbClient(asyncore.dispatcher):
 
         # during the first pass, Cpus objects may not have been created
         if not th-1 in Cpus.keys():
-            Cpus[th-1] = Cpu(th-1)
+            Cpus[th-1] = Cpu(th-1, Arch.cpu_maxy, Arch.cpu_maxx)
         Cpus[th-1].update(newregs)
         #Log.write('++++ newregs ' + str(newregs), CPdbg)
         refresh_all()
@@ -707,7 +712,7 @@ class GdbClient(asyncore.dispatcher):
         # extract the thread number
         th = int(self.rbuf[1:], 16)
         if not th-1 in Cpus.keys():
-            Cpus[th-1] = Cpu(th-1)
+            Cpus[th-1] = Cpu(th-1, Arch.cpu_maxy, Arch.cpu_maxx)
         if not th-1 in self._threads:
             self.nthreads += 1
             self._threads.append(th-1)
@@ -780,6 +785,115 @@ class GdbClient(asyncore.dispatcher):
             self.queue_cmd(bp)
             update_status('++ deleted %s' % bp, CPdbg)
         Watchpoints = {}
+
+# ----------------------------------------------------------------------------
+# Format Arbitrary Data Structure (fads) - support functions
+#
+# Sure, this could be a library ...
+#
+# Many programmers think nothing of adding external libraries to their code.
+# But I hate the effect it has on end users.  For every spider-web dependency
+# we make users download, I'll bet we loose a big chunk of our audience - each
+# dependency!  Yeah, its geometric.  So until fads makes it in to the core
+# python install(!), I'm refusing to make it a library.  *You* can, of course
+# if you want, but I will not require users to setup extra support libraries
+# to make pgdb run.  Besides, since I'm switching architecture modules out on
+# the fly, FADS should only really be loaded once even though many of the
+# modules use it.  What follows are the member functions for the FADS system
+# wrapped in a dictionary that I can export across modules.
+#
+# Note: it would be nice if I could include all the DS class constructors
+# here but this opens a whole can of worms including a chicken-egg module
+# load issue for which I currently don't see a clean solution.  The classes
+# must be available *while* the architecture submodule is being imported ...
+# I don't think even create_module() can deal with this yet.
+# For now, the DS class constructors will have to be pasted into each arch
+# module that uses them.  (no library!  users get to be able to copy
+# pgdb.py and a few of the arch modules of their choice to a new location
+# and start running without easy-install or pypi whatever...)
+
+def ds_reconstruct_hex(data, build_list):
+    # this reconstructor operates on a hexidecimal string of data.
+    # (aka. it is tuned for gdb remote debug protocol data)
+    # bytes are encoded as [high-nibble,low-nibble] and
+    # are assembled from the lowest addres to highest address.
+    # masks here are rounded up to a multiple of 4 bits.
+    srval = ''
+    rval = 0
+    mask = 0
+    for bld in build_list:
+        val = ''
+        for byte in range(bld.firstb, bld.lastb+1):
+            val = data[byte*2:byte*2+2] + val
+        if bld.lshift % 4 != 0:
+            raise Exception('for hex reconstruction, lshift must be mult of 4')
+        v = int(val, 16) << bld.lshift
+        rval |= v
+        m = bld.mask << bld.lshift
+        mask |= m
+        srval = val + srval
+    # apply mask
+    return '%0*x' % (len('%x' % mask), rval & mask), rval & mask
+
+#def ds_reconstruct_packed_struct(data, build_list):
+#    # for a more generic implementation, someone could write a version
+#    # that extracts from a packed struct - but we don't need it here
+
+def ds_match_field_values(val, field_values):
+    # TODO: if previous value is passed in along with 'val', then
+    # color-chars (see css()) can be placed around fldv.txt if the
+    # masked vals are different ...
+    rval = ''
+    for fldv in field_values:
+        if fldv.val == -1  and  val != 0:
+            rval += fldv.txt
+        elif (val & fldv.mask) == fldv.val:
+            rval += fldv.txt
+    return rval
+
+def ds_print_one(data, ds_spec):
+    # return a list of strings (one line each) that
+    # display 'data' according the 'ds_spec'
+    strs = []
+    lno = 0
+    ln = ''
+    vals = ''
+    for el in ds_spec.elements:
+        while lno != el.y:
+            strs.append((ln + vals)[:ds_spec.width])
+            ln = ''
+            vals = ''
+            lno += 1
+        ln += ' ' * (el.x - len(ln))
+        rln, val = ds_reconstruct_hex(data, el.build)
+        if not el.name.startswith('_'):
+            ln += el.name + rln
+        vals += ds_match_field_values(val, el.vals)
+    strs.append((ln + vals)[:ds_spec.width])
+    return strs
+
+def ds_print(data, ds_spec, start_addr):
+    # 'data' is a gdb rdp mem dump string of nibbles (see above)
+    strs = []
+    data_offset = 0     # in bytes
+    while data_offset*2 < len(data):
+        # if struct is multi-line, add a full line for the header
+        if ds_spec.height > 1 and ds_spec.header:
+            strs.append(ds_spec.header % (start_addr + data_offset))
+        # break data into struct size chunks
+        chunk = data[data_offset*2:(data_offset+ds_spec.dlen)*2]
+        for ln in ds_print_one(chunk, ds_spec):
+            # if struct is single-line, header goes in the left margin
+            if ds_spec.height == 1 and ds_spec.header:
+                ln = ds_spec.header % (start_addr + data_offset) + ln
+            strs.append(ln)
+        data_offset += ds_spec.dlen
+    return strs
+
+DSfns = {'ds_reconstruct_hex':    ds_reconstruct_hex,
+         'ds_match_field_values': ds_match_field_values,
+         'ds_print_one':          ds_print_one,
+         'ds_print':              ds_print}
 
 # ----------------------------------------------------------------------------
 # nasm specifics
@@ -1196,10 +1310,10 @@ class Movable_panel(object):
 
 
 class Cpu(Movable_panel):
-    def __init__(self, i):
+    def __init__(self, i, y, x):
         global Active_cpu, Active_obj
         h,w = Stdscr.getmaxyx()
-        Movable_panel.__init__(self, 7,61, i+2,i*3+4, ' cpu%d ' % i)
+        Movable_panel.__init__(self, y,x, i+2,i*3+4, ' cpu%d ' % i)
         self.i = i
         self.regs = {}          # register values are integers
         self.last_ip = None
@@ -1940,6 +2054,8 @@ def load_gccmap_file(fname, segs, file_base):
             tokens = ln.split()
             ntokens = len(tokens)
             if ntokens == 2:
+                if not ln.lstrip().startswith('0x'):
+                    continue
                 t1, t2 = ln.split()
                 t3 = t4 = ''
             elif ntokens == 4:
@@ -1950,10 +2066,8 @@ def load_gccmap_file(fname, segs, file_base):
             # a section marker must be processed before a symbol can be added
             if ntokens == 2:
                 if state == 'data':
-                    #print('data [%s] [%s]\n' % (t2, t1), file=sys.stderr)
                     srcobj.datasyms.append((t2, int(t1, 16), segs, sec_base))
                 elif state == 'code':
-                    #print('code [%s] [%s]\n' % (t2, t1), file=sys.stderr)
                     srcobj.codesyms.append((t2, int(t1, 16), segs, sec_base))
                 continue
 
@@ -2292,9 +2406,10 @@ def inputmode_memory(c):
                 update_status(' ', CPnrm)
                 return inputmode_normal
 
-            vals = dictify_symbols(Active_src.datasyms)
+            vals = dictify_symbols(Active_src.datasyms) if Active_src else {}
             if Active_cpu:
                 vals.update(Active_cpu.regs)    # merge dicts
+
             ds_spec = None
             count = None
             if Text.find('@') > 0:

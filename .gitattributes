@@ -13,8 +13,13 @@ examples/qemu/x86_64/oz-x86-64-asm-001/oz_usb               -diff
 examples/qemu/x86_64/oz-x86-64-asm-001/oz_usb.lst           -diff
 examples/qemu/x86_64/oz-x86-64-asm-001/oz_usb.map           -diff
 examples/qemu/arm-versatilepb/hello_world/startup.lst       -diff
+examples/qemu/arm-versatilepb/hello_world/startup.o         -diff
+examples/qemu/arm-versatilepb/hello_world/test.o            -diff
 examples/qemu/arm-versatilepb/hello_world/test.bin          -diff
 examples/qemu/arm-versatilepb/hello_world/test.elf          -diff
 examples/qemu/arm-versatilepb/hello_world/test.lst          -diff
-examples/qemu/arm-versatilepb/hello_world/test.map          -diff
+examples/qemu/aarch64-cortex-a57/hello_world/startup.lst    -diff
+examples/qemu/aarch64-cortex-a57/hello_world/startup.o      -diff
+examples/qemu/aarch64-cortex-a57/hello_world/test.bin       -diff
+examples/qemu/aarch64-cortex-a57/hello_world/test.elf       -diff
 

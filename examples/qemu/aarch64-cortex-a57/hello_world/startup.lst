@@ -1,0 +1,27 @@
+
+startup.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <_Reset>:
+   0:	58000180 	ldr	x0, 30 <uart_addr>
+   4:	580001a1 	ldr	x1, 38 <uart_addr+0x8>
+
+0000000000000008 <loop>:
+   8:	39400022 	ldrb	w2, [x1]
+   c:	f100005f 	cmp	x2, #0x0
+  10:	54000080 	b.eq	20 <done>
+  14:	f9000002 	str	x2, [x0]
+  18:	91000421 	add	x1, x1, #0x1
+  1c:	17fffffb 	b	8 <loop>
+
+0000000000000020 <done>:
+  20:	14000000 	.word	0x14000000
+  24:	d503201f 	.word	0xd503201f
+  28:	d503201f 	.word	0xd503201f
+  2c:	d503201f 	.word	0xd503201f
+
+0000000000000030 <uart_addr>:
+  30:	09000000 	.word	0x09000000
+	...

@@ -47,6 +47,9 @@ version = "PGDB x86_32 v0.01 2015/10/12"
 
 name = 'i386'
 
+DSfns = None
+
+
 # The length of the rdp 'g' register dump which is likely not
 # the best way to tell which architecture qemu is emulating
 gspec_len = 616
@@ -129,12 +132,15 @@ def cpu_reg_update(self, newregs):
     # lol, messy, but cool
     x = newregs['flags']
     fla = '%02x' % (x&0xff) + '%02x' % ((x&0xff00)>>8) + '%02x00' % ((x&0xff0000)>>16)
-    flstr = ds_print_one(fla, ds_eflags)[0]
+    flstr = DSfns['ds_print_one'](fla, ds_eflags)[0]
+    # so the max possible eflags string is like 53,
+    # here I hope that not all flags will be on at the same time
     strs.append((5, 14, '%45s' % flstr))
 
-    # TODO: used this for XMM and ST regs - only displayed the non-zero
-    #       regs - but it's all too much - need a slick way to deal with
-    #       tons of regs - scroll the cpu windows maybe ...
+    # TODO: at one point I used this for XMM and ST regs - only displayed the
+    #       non-zero regs - but it's all too much - need a slick way to deal
+    #       with tons of regs - scroll the cpu windows maybe ... for now,
+    #       no floating point or extended "multimedia" regs are displayed.
     # track line length in nibbles displayed
     # always print the first 16 regs, then only non-zero regs
     #    if i < 16 or int(val, 16) != 0:
@@ -181,14 +187,11 @@ def get_ip_bpfmt(self):
 
 
 # ---------------------------------------------------------------------------
-# format arbitrary data structures
+# Format Arbitrary Data Structures
 #
 # sure, this could be an external module i.e. 'import fads', and someone
-# will, in the future, likely break it out.  but actually the manner in which
-# architecture specific modules generate the list of strings to populate
-# pgdb curses Mem_ds() windows is completely independent from pgdb.
-# I don't feel like forcing this on any other arch module at this time;
-# and there are maybe a few x86-isms that have crept in ...
+# will (in some project of theirs) likely break it out, but I won't (see
+# my rant in pgdb.py).
 
 class DS(object):
     # defines a data structure
@@ -225,85 +228,6 @@ class DSVAL(object):
         self.mask = mask            # field mask
         self.val = val              # value, or -1 for != 0 test
         self.txt = txt              # string to print if match
-
-def ds_reconstruct_hex(data, build_list):
-    # this reconstructor operates on a hexidecimal string of data.
-    # (aka. it is tuned for gdb remote debug protocol data)
-    # bytes are encoded as [high-nibble,low-nibble] and
-    # are assembled from the lowest addres to highest address.
-    # masks here are rounded up to a multiple of 4 bits.
-    srval = ''
-    rval = 0
-    mask = 0
-    for bld in build_list:
-        val = ''
-        for byte in range(bld.firstb, bld.lastb+1):
-            val = data[byte*2:byte*2+2] + val
-        if bld.lshift % 4 != 0:
-            raise Exception('for hex reconstruction, lshift must be mult of 4')
-        v = int(val, 16) << bld.lshift
-        rval |= v
-        m = bld.mask << bld.lshift
-        mask |= m
-        srval = val + srval
-    # apply mask
-    return '%0*x' % (len('%x' % mask), rval & mask), rval & mask
-
-#def ds_reconstruct_packed_struct(data, build_list):
-#    # for a more generic implementation, someone could write a version
-#    # that extracts from a packed struct - but we don't need it here
-#    pass
-
-def ds_match_field_values(val, field_values):
-    # TODO: if previous value is passed in along with 'val', then
-    # color-chars (see css()) can be placed around fldv.txt if the
-    # masked vals are different ...
-    rval = ''
-    for fldv in field_values:
-        if fldv.val == -1  and  val != 0:
-            rval += fldv.txt
-        elif (val & fldv.mask) == fldv.val:
-            rval += fldv.txt
-    return rval
-
-def ds_print_one(data, ds_spec):
-    # return a list of strings (one line each) that
-    # display 'data' according the 'ds_spec'
-    strs = []
-    lno = 0
-    ln = ''
-    vals = ''
-    for el in ds_spec.elements:
-        while lno != el.y:
-            strs.append((ln + vals)[:ds_spec.width])
-            ln = ''
-            vals = ''
-            lno += 1
-        ln += ' ' * (el.x - len(ln))
-        rln, val = ds_reconstruct_hex(data, el.build)
-        if not el.name.startswith('_'):
-            ln += el.name + rln
-        vals += ds_match_field_values(val, el.vals)
-    strs.append((ln + vals)[:ds_spec.width])
-    return strs
-
-def ds_print(data, ds_spec, start_addr):
-    # 'data' is a gdb rdp mem dump string of nibbles (see above)
-    strs = []
-    data_offset = 0     # in bytes
-    while data_offset*2 < len(data):
-        # if struct is multi-line, add a full line for the header
-        if ds_spec.height > 1 and ds_spec.header:
-            strs.append(ds_spec.header % (start_addr + data_offset))
-        # break data into struct size chunks
-        chunk = data[data_offset*2:(data_offset+ds_spec.dlen)*2]
-        for ln in ds_print_one(chunk, ds_spec):
-            # if struct is single-line, header goes in the left margin
-            if ds_spec.height == 1 and ds_spec.header:
-                ln = ds_spec.header % (start_addr + data_offset) + ln
-            strs.append(ln)
-        data_offset += ds_spec.dlen
-    return strs
 
 # ------------------------------------------------
 # define the data structures specific to i386
@@ -398,21 +322,21 @@ ds_tss = DS('tss', 'task state', 104, 15, 30, '\b---- tss @ 0x%x', _tss_els)
 _eflags_els = (
     DSFLD(0, 0, '_',[DSBLD(0,2,0xffffff,0)],
         # print the flags left to right
-        [DSVAL(0x200000,0x200000,'id '),
-         DSVAL(0x100000,0x100000,'vp '),  DSVAL(0x080000,0x080000,'vi '),
-         DSVAL(0x040000,0x040000,'ac '),  DSVAL(0x020000,0x020000,'v8 '),
-         DSVAL(0x010000,0x010000,'r '),   DSVAL(0x004000,0x004000,'nt '),
-         DSVAL(0x003000,0x001000,'io1 '),
-         DSVAL(0x003000,0x002000,'io2 '), DSVAL(0x003000,0x003000,'io3 '),
+        [DSVAL(0x200000,0x200000,'id'),
+         DSVAL(0x100000,0x100000,' vp'),  DSVAL(0x080000,0x080000,' vi'),
+         DSVAL(0x040000,0x040000,' ac'),  DSVAL(0x020000,0x020000,' v8'),
+         DSVAL(0x010000,0x010000,' r'),   DSVAL(0x004000,0x004000,' nt'),
+         DSVAL(0x003000,0x001000,' io1'),
+         DSVAL(0x003000,0x002000,' io2'), DSVAL(0x003000,0x003000,' io3'),
 
-         DSVAL(0x000800,0x000800,'o'),
-         DSVAL(0x000400,0x000400,'d'), DSVAL(0x000200,0x000200,'i'),
-         DSVAL(0x000100,0x000100,'t'), DSVAL(0x000080,0x000080,'s'),
-         DSVAL(0x000040,0x000040,'z'), DSVAL(0x000010,0x000010,'a'),
-         DSVAL(0x000004,0x000004,'p'), DSVAL(0x000001,0x000001,'c')]),
+         DSVAL(0x000800,0x000800,' o'),
+         DSVAL(0x000400,0x000400,' d'), DSVAL(0x000200,0x000200,' i'),
+         DSVAL(0x000100,0x000100,' t'), DSVAL(0x000080,0x000080,' s'),
+         DSVAL(0x000040,0x000040,' z'), DSVAL(0x000010,0x000010,' a'),
+         DSVAL(0x000004,0x000004,' p'), DSVAL(0x000001,0x000001,' c')]),
 )
 
-ds_eflags = DS('flags', 'cpu 32bit flags', 4, 1, 45, None, _eflags_els)
+ds_eflags = DS('flags', 'cpu 32bit flags', 4, 1, 53, None, _eflags_els)
 
 
 # sample_gdt = "0000000000000000ffff0000009acf00ffff00000093cf00ff1f0010009300009f0f00800b930000ffff0000009a0f00ffff000000920f006800808d00890000"

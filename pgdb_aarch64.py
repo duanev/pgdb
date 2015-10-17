@@ -1,16 +1,15 @@
 #
-# PGDB arm 32bit little-endian architecture module
+# PGDB arm 64bit architecture module
 #
 # contributors:
 #   djv - Duane Voth
 #
 # history:
-#   2015/10/12 - v0.01 - djv - released
-#   2015/10/16 - v0.02 - djv - display cpsr flags
+#   2015/10/16 - v0.01 - djv - released
 
-version = "PGDB arm v0.02 2015/10/16"
+version = "PGDB aarch64 v0.01 2015/10/16"
 
-name = 'arm'
+name = 'aarch64'
 
 Log = None
 DSfns = None
@@ -47,11 +46,22 @@ def generate_gspec(xml_tree):
 
 # The length of the rdp 'g' register dump which is likely not
 # the best way to tell which architecture qemu is emulating
-gspec_len = 136
+gspec_len = 536
 
 
-cpu_maxy = 7
-cpu_maxx = 58
+# ok, THIS is a challenging register display format!  we'd really like
+# to bring up pgdb in an 80x24 terminal minimally, but 32 64bit regs
+# really don't fit in 80x24 in any sensible way ... so I'm lopping off
+# the two top nibbles - thats right, I'm only displaying 56 bits of each
+# register! (except the pc gets all 64)  If this doesn't work then cpu_maxx
+# will have to go to 87 and for an 80x24 terminal the pgdb cpu windows will
+# be off the screen to the right AND locked in place (cause thats what
+# curses does to panels that are partially off the screen, it currently
+# refuses to allow them to be moved).  Somewhere we'll have to tell users
+# that they need to use minimally a 90x24 terminal to start pgdb if they
+# want the cpu windows to be movable.
+cpu_maxy = 11
+cpu_maxx = 79
 
 # Cpu methods
 
@@ -66,23 +76,42 @@ def cpu_reg_update(self, newregs):
 
     # the zero row is the title row
     # register names have to match what gdb rdp returns in the xml
-    rdiff(0, 10, ' %08x ',    'pc',   newregs, self.regs)
-    rdiff(1,  2, ' r0 %08x',  'r0',   newregs, self.regs)
-    rdiff(1, 16, ' r1 %08x',  'r1',   newregs, self.regs)
-    rdiff(1, 30, ' r2 %08x',  'r2',   newregs, self.regs)
-    rdiff(1, 44, ' r3 %08x',  'r3',   newregs, self.regs)
-    rdiff(2,  2, ' r4 %08x',  'r4',   newregs, self.regs)
-    rdiff(2, 16, ' r5 %08x',  'r5',   newregs, self.regs)
-    rdiff(2, 30, ' r6 %08x',  'r6',   newregs, self.regs)
-    rdiff(2, 44, ' r7 %08x',  'r7',   newregs, self.regs)
-    rdiff(3,  2, ' r8 %08x',  'r8',   newregs, self.regs)
-    rdiff(3, 16, ' r9 %08x',  'r9',   newregs, self.regs)
-    rdiff(3, 30, 'r10 %08x',  'r10',  newregs, self.regs)
-    rdiff(3, 44, 'r11 %08x',  'r11',  newregs, self.regs)
-    rdiff(4,  2, 'r12 %08x',  'r12',  newregs, self.regs)
-    rdiff(4, 16, ' sp %08x',  'sp',   newregs, self.regs)
-    rdiff(4, 30, ' lr %08x',  'lr',   newregs, self.regs)
-    rdiff(4, 43, 'cpsr %08x', 'cpsr', newregs, self.regs)
+    rdiff(0, 10, ' %016x ',   'pc',   newregs, self.regs)
+    rdiff(1,  2, ' x0 %014x', 'x0',   newregs, self.regs)
+    rdiff(1, 21, ' x1 %014x', 'x1',   newregs, self.regs)
+    rdiff(1, 40, ' x2 %014x', 'x2',   newregs, self.regs)
+    rdiff(1, 59, ' x3 %014x', 'x3',   newregs, self.regs)
+    rdiff(2,  2, ' x4 %014x', 'x4',   newregs, self.regs)
+    rdiff(2, 21, ' x5 %014x', 'x5',   newregs, self.regs)
+    rdiff(2, 40, ' x6 %014x', 'x6',   newregs, self.regs)
+    rdiff(2, 59, ' x7 %014x', 'x7',   newregs, self.regs)
+    rdiff(3,  2, ' x8 %014x', 'x8',   newregs, self.regs)
+    rdiff(3, 21, ' x9 %014x', 'x9',   newregs, self.regs)
+    rdiff(3, 40, 'x10 %014x', 'x10',  newregs, self.regs)
+    rdiff(3, 59, 'x11 %014x', 'x11',  newregs, self.regs)
+    rdiff(4,  2, 'x12 %014x', 'x12',  newregs, self.regs)
+    rdiff(4, 21, 'x13 %014x', 'x13',  newregs, self.regs)
+    rdiff(4, 40, 'x14 %014x', 'x14',  newregs, self.regs)
+    rdiff(4, 59, 'x15 %014x', 'x15',  newregs, self.regs)
+    rdiff(5,  2, 'x16 %014x', 'x16',  newregs, self.regs)
+    rdiff(5, 21, 'x17 %014x', 'x17',  newregs, self.regs)
+    rdiff(5, 40, 'x18 %014x', 'x18',  newregs, self.regs)
+    rdiff(5, 59, 'x19 %014x', 'x19',  newregs, self.regs)
+    rdiff(6,  2, 'x20 %014x', 'x20',  newregs, self.regs)
+    rdiff(6, 21, 'x21 %014x', 'x21',  newregs, self.regs)
+    rdiff(6, 40, 'x22 %014x', 'x22',  newregs, self.regs)
+    rdiff(6, 59, 'x23 %014x', 'x23',  newregs, self.regs)
+    rdiff(7,  2, 'x24 %014x', 'x24',  newregs, self.regs)
+    rdiff(7, 21, 'x25 %014x', 'x25',  newregs, self.regs)
+    rdiff(7, 40, 'x26 %014x', 'x26',  newregs, self.regs)
+    rdiff(7, 59, 'x27 %014x', 'x27',  newregs, self.regs)
+    rdiff(8,  2, 'x28 %014x', 'x28',  newregs, self.regs)
+    rdiff(8, 21, 'x29 %014x', 'x29',  newregs, self.regs)
+    rdiff(8, 40, 'x30 %014x', 'x30',  newregs, self.regs)
+    rdiff(8, 64, 'cpsr %08x', 'cpsr', newregs, self.regs)
+
+    rdiff(9,  2, ' sp %016x', 'sp',   newregs, self.regs)
+#   rdiff(4, 30, ' lr %08x',  'lr',   newregs, self.regs)
 
     # TODO: at one point I used this for XMM and ST regs - only displayed the
     #       non-zero regs - but it's all too much - need a slick way to deal
@@ -106,7 +135,7 @@ def cpu_reg_update(self, newregs):
     fla += '%02x' % ((x&0xff0000)>>16)
     fla += '%02x' % ((x&0xff000000)>>24)
     flstr = DSfns['ds_print_one'](fla, ds_cpsr)[0]
-    strs.append((5, 14, '%44s' % flstr))
+    strs.append((9, 35, '%44s' % flstr))
 
     return strs
 
@@ -187,15 +216,14 @@ _cpsr_els = (
          DSVAL(0x00001000,0x00001000,' big'), DSVAL(0x00000800,0x00000800,' a'),
          DSVAL(0x00000400,0x00000400,' id'),  DSVAL(0x00000200,0x00000200,' fd'),
 
-         #DSVAL(0x00000010,0x00000010,' thmb'),
-         DSVAL(0x0000001f,0x0000001f,'\a sys\t'), DSVAL(0x0000001f,0x0000001e,'\r UND\t'),
-         DSVAL(0x0000001f,0x0000001d,'\r UND\t'), DSVAL(0x0000001f,0x0000001c,'\r UND\t'),
-         DSVAL(0x0000001f,0x0000001b,'\r und\t'), DSVAL(0x0000001f,0x0000001a,'\r hyp\t'),
-         DSVAL(0x0000001f,0x00000019,'\r UND\t'), DSVAL(0x0000001f,0x00000018,'\r UND\t'),
-         DSVAL(0x0000001f,0x00000017,'\a abt\t'), DSVAL(0x0000001f,0x00000016,'\r mon\t'),
-         DSVAL(0x0000001f,0x00000015,'\r UND\t'), DSVAL(0x0000001f,0x00000014,'\r UND\t'),
-         DSVAL(0x0000001f,0x00000013,'\a svc\t'), DSVAL(0x0000001f,0x00000012,' irq'),
-         DSVAL(0x0000001f,0x00000011,' fiq',),    DSVAL(0x0000001f,0x00000010,' usr')]),
+         DSVAL(0x0000001f,0x0000000f,'\a sys\t'), DSVAL(0x0000001f,0x0000000e,'\r UND\t'),
+         DSVAL(0x0000001f,0x0000000d,'\r UND\t'), DSVAL(0x0000001f,0x0000000c,'\r UND\t'),
+         DSVAL(0x0000001f,0x0000000b,'\r und\t'), DSVAL(0x0000001f,0x0000000a,'\r UND\t'),
+         DSVAL(0x0000001f,0x00000009,'\r UND\t'), DSVAL(0x0000001f,0x00000008,'\r UND\t'),
+         DSVAL(0x0000001f,0x00000007,'\a abt\t'), DSVAL(0x0000001f,0x00000006,'\r UND\t'),
+         DSVAL(0x0000001f,0x00000005,'\r UND\t'), DSVAL(0x0000001f,0x00000004,'\r UND\t'),
+         DSVAL(0x0000001f,0x00000003,'\a sup\t'), DSVAL(0x0000001f,0x00000002,' irq'),
+         DSVAL(0x0000001f,0x00000001,' fiq',),    DSVAL(0x0000001f,0x00000000,' usr')]),
 )
 
 ds_cpsr = DS('cpsr', 'program status register', 4, 1, 44, None, _cpsr_els)
