@@ -1,37 +1,6 @@
 #
 # PGDB x86 32bit architecture module
 #
-
-"""
-Copyright (c) 2015, Duane Voth
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its contributors
-   may be used to endorse or promote products derived from this software
-   without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
 # implementation notes:
 #   - don't create class objects in this module that are not quickly
 #       released by pgdb.py.  the x86 modules get switched out dynamically
@@ -109,7 +78,7 @@ def cpu_reg_update(self, newregs):
         attr = '' if new == old else '\a'
         strs.append((y, x, attr + fmt % new))
 
-    # the zero row is the title row
+    # zero row is the title row
     rdiff(0, 10, ' %04x:',      'cs',    newregs, self.regs)
     rdiff(0, 16, '%08x ',       'eip',   newregs, self.regs)
     rdiff(1,  2, 'eax %08x',    'eax',   newregs, self.regs)
@@ -185,13 +154,12 @@ def get_ip_bpfmt(self):
 
 
 
-
 # ---------------------------------------------------------------------------
 # Format Arbitrary Data Structures
 #
 # sure, this could be an external module i.e. 'import fads', and someone
 # will (in some project of theirs) likely break it out, but I won't (see
-# my rant in pgdb.py).
+# my rant in pgdb.py about 'fads').
 
 class DS(object):
     # defines a data structure
@@ -206,7 +174,7 @@ class DS(object):
 
 class DSFLD(object):
     # defines a data structure field
-    # note: field objects must be sorted in row then column order
+    # field objects must be sorted for the display, in row then column order
     def __init__(self, y, x, name, build, vals):
         self.y = y                  # display row number
         self.x = x                  # display minimum column number
@@ -216,6 +184,7 @@ class DSFLD(object):
 
 class DSBLD(object):
     # defines how to build a data structure field from data
+    # a list of DSBLD objects are ORed together to build a field
     def __init__(self, firstb, lastb, mask, lshift):
         self.firstb = firstb        # index of first byte
         self.lastb = lastb          # index of last byte
@@ -232,9 +201,9 @@ class DSVAL(object):
 # ------------------------------------------------
 # define the data structures specific to i386
 
-# gdt: swdev3a s3.4.5 pg 3-13 fig 3-8
-#      code and data:  swdev3a s3.4.5.1 pg 3-17
-#      tss descriptor: swdev3a s7.2.2   pg 7-7
+# gdt: intel swdev3a s3.4.5 pg 3-13 fig 3-8
+#      code and data:  intel swdev3a s3.4.5.1 pg 3-17
+#      tss descriptor: intel swdev3a s7.2.2   pg 7-7
 _gdt_els = (
     DSFLD(0, 0,'',[DSBLD(2,3,0xffff,0),DSBLD(4,4,0xff,16),DSBLD(7,7,0xff,24)], []),
     DSFLD(0,10,'',[DSBLD(0,1,0xffff,0),DSBLD(6,6,0x0f,16)], []),
@@ -259,7 +228,7 @@ _gdt_els = (
 
 ds_gdt = DS('gdt', 'global descriptor table', 8, 1, 54, '%03x ', _gdt_els)
 
-# tss: swdev3a s7.2.1 pg 7-5
+# tss: intel swdev3a s7.2.1 pg 7-5
 _tss_els = (
     DSFLD( 0, 2,   'ss0 ',[DSBLD(  8,  9,    0xffff,0)],[]),
     DSFLD( 0, 0,   '_res',[DSBLD( 10, 11,    0xffff,0)],
@@ -318,7 +287,7 @@ _tss_els = (
 ds_tss = DS('tss', 'task state', 104, 15, 30, '\b---- tss @ 0x%x', _tss_els)
 
 
-# eflags: swdev1 s3.4.3  pg 3-21 fig 3-8
+# eflags: intel swdev1 s3.4.3  pg 3-21 fig 3-8
 _eflags_els = (
     DSFLD(0, 0, '_',[DSBLD(0,2,0xffffff,0)],
         # print the flags left to right

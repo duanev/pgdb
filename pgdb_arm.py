@@ -114,7 +114,7 @@ def get_seg_register(self):
     # for architectures that don't use segments, return either a 0
     # or an overlay number.  Overlays (for our purposes here) have
     # the same definition as segments: ie. a set of address spaces
-    # that overlap.
+    # that may overlap.
     return 0
 
 def get_ip_register(self):
@@ -138,7 +138,7 @@ def get_ip_bpfmt(self):
 #
 # sure, this could be an external module i.e. 'import fads', and someone
 # will (in some project of theirs) likely break it out, but I won't (see
-# my rant in pgdb.py).
+# my rant in pgdb.py about 'fads').
 
 class DS(object):
     # defines a data structure
@@ -153,7 +153,7 @@ class DS(object):
 
 class DSFLD(object):
     # defines a data structure field
-    # note: field objects must be sorted in row then column order
+    # field objects must be sorted for the display, in row then column order
     def __init__(self, y, x, name, build, vals):
         self.y = y                  # display row number
         self.x = x                  # display minimum column number
@@ -163,6 +163,7 @@ class DSFLD(object):
 
 class DSBLD(object):
     # defines how to build a data structure field from data
+    # a list of DSBLD objects are ORed together to build a field
     def __init__(self, firstb, lastb, mask, lshift):
         self.firstb = firstb        # index of first byte
         self.lastb = lastb          # index of last byte
@@ -190,7 +191,7 @@ _cpsr_els = (
          #DSVAL(0x00000010,0x00000010,' thmb'),
          DSVAL(0x0000001f,0x0000001f,'\a sys\t'), DSVAL(0x0000001f,0x0000001e,'\r UND\t'),
          DSVAL(0x0000001f,0x0000001d,'\r UND\t'), DSVAL(0x0000001f,0x0000001c,'\r UND\t'),
-         DSVAL(0x0000001f,0x0000001b,'\r und\t'), DSVAL(0x0000001f,0x0000001a,'\r hyp\t'),
+         DSVAL(0x0000001f,0x0000001b,'\a und\t'), DSVAL(0x0000001f,0x0000001a,'\r hyp\t'),
          DSVAL(0x0000001f,0x00000019,'\r UND\t'), DSVAL(0x0000001f,0x00000018,'\r UND\t'),
          DSVAL(0x0000001f,0x00000017,'\a abt\t'), DSVAL(0x0000001f,0x00000016,'\r mon\t'),
          DSVAL(0x0000001f,0x00000015,'\r UND\t'), DSVAL(0x0000001f,0x00000014,'\r UND\t'),

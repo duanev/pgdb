@@ -1,37 +1,6 @@
 #
 # PGDB x86 64bit architecture module
 #
-
-"""
-Copyright (c) 2015, Duane Voth
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its contributors
-   may be used to endorse or promote products derived from this software
-   without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
 # implementation notes:
 #   - don't create class objects in this module that are not quickly
 #       released by pgdb.py.  the x86 modules get switched out dynamically
@@ -47,6 +16,7 @@ version = "PGDB x86_64 v0.01 2015/10/12"
 
 name = 'x86_64'
 
+Log = None
 DSfns = None
 
 # The length of the rdp 'g' register dump which is likely not
@@ -70,19 +40,16 @@ def alter_ego(n):
 # order, as well as parsing specific register data from
 # the gdb cmd response string.
 
-    R_EAX, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI, R_EBP, R_ESP,
-    8, 9, 10, 11, 12, 13, 14, 15
-
 gspec = [
     ['rax',     0,  16], ['rbx',    16,  32], ['rcx',    32,  48], ['rdx',    48,  64],
     ['rsi',    64,  80], ['rdi',    80,  96], ['rbp',    96, 112], ['rsp',   112, 128],
     ['r8',    128, 144], ['r9',    144, 160], ['r10',   160, 176], ['r11',   176, 192],
     ['r12',   192, 208], ['r13',   208, 224], ['r14',   224, 240], ['r15',   240, 256],
-    ['rip',   256, 272], ['flags', 272, 288], ['cs',    288, 296], ['ds',    296, 304],
-    ['es',    304, 312], ['fs',    312, 320], ['gs',    320, 328], ['ss',    328, 336],
-# ok I know I botched the floating point offsets ... and ss if wrong too
-    ['st0',   336, 356], ['st1',   356, 376], ['st2',   376, 396], ['st3',   396, 416],
-    ['st4',   416, 436], ['st5',   436, 452], ['st6',   452, 462], ['st7',   462, 472],
+    ['rip',   256, 272], ['flags', 272, 280], ['cs',    280, 288], ['ss',    288, 296],
+    ['ds',    296, 304], ['es',    304, 312], ['fs',    312, 320], ['gs',    320, 328],
+# ok I know I botched the floating point offsets ... and what is 328-392 ?
+    ['st0',   392, 402], ['st1',   402, 412], ['st2',   412, 422], ['st3',   422, 432],
+    ['st4',   432, 442], ['st5',   442, 452], ['st6',   452, 462], ['st7',   462, 472],
     ['st8',   472, 482], ['st9',   482, 492], ['st10',  492, 502], ['st11',  502, 512],
     ['st12',  512, 522], ['st13',  522, 532], ['st14',  532, 542], ['st15',  542, 552],
 
@@ -118,7 +85,7 @@ def cpu_reg_update(self, newregs):
 
 # I'm not completely happy with this layout ...
 
-    # the zero row is the title row
+    # zero row is the title row
     rdiff(0, 10, ' %04x:',      'cs',    newregs, self.regs)
     rdiff(0, 16, '%016x ',      'rip',   newregs, self.regs)
     rdiff(1,  2, 'rax %016x',   'rax',   newregs, self.regs)
@@ -143,7 +110,7 @@ def cpu_reg_update(self, newregs):
     rdiff(7, 47, 'mxcsr %08x',  'mxcsr', newregs, self.regs)
     rdiff(8,  2, 'r14 %016x',   'r14',   newregs, self.regs)
     rdiff(8, 24, 'r15 %016x',   'r15',   newregs, self.regs)
-    rdiff(8, 46, 'flags %09x',  'flags', newregs, self.regs)
+    rdiff(8, 47, 'flags %08x',  'flags', newregs, self.regs)
 
     # lol, messy, but cool
     x = newregs['flags']
@@ -200,14 +167,11 @@ def get_ip_bpfmt(self):
 
 
 # ---------------------------------------------------------------------------
-# format arbitrary data structures
+# Format Arbitrary Data Structures
 #
 # sure, this could be an external module i.e. 'import fads', and someone
-# will, in the future, likely break it out.  but actually the manner in which
-# architecture specific modules generate the list of strings to populate
-# pgdb curses Mem_ds() windows is completely independent from pgdb.
-# I don't feel like forcing this on any other arch module at this time;
-# and there are maybe a few x86-isms that have crept in ...
+# will (in some project of theirs) likely break it out, but I won't (see
+# my rant in pgdb.py about 'fads').
 
 class DS(object):
     # defines a data structure
@@ -222,7 +186,7 @@ class DS(object):
 
 class DSFLD(object):
     # defines a data structure field
-    # note: field objects must be sorted in row then column order
+    # field objects must be sorted for the display, in row then column order
     def __init__(self, y, x, name, build, vals):
         self.y = y                  # display row number
         self.x = x                  # display minimum column number
@@ -232,6 +196,7 @@ class DSFLD(object):
 
 class DSBLD(object):
     # defines how to build a data structure field from data
+    # a list of DSBLD objects are ORed together to build a field
     def __init__(self, firstb, lastb, mask, lshift):
         self.firstb = firstb        # index of first byte
         self.lastb = lastb          # index of last byte
@@ -248,9 +213,9 @@ class DSVAL(object):
 # ------------------------------------------------
 # define the data structures specific to x86_64
 
-# gdt: swdev3a s3.4.5 pg 3-13 fig 3-8
-#      code and data:  swdev3a s3.4.5.1 pg 3-17
-#      tss descriptor: swdev3a s7.2.2   pg 7-7
+# gdt: intel swdev3a s3.4.5 pg 3-13 fig 3-8
+#      code and data:  intel swdev3a s3.4.5.1 pg 3-17
+#      tss descriptor: intel swdev3a s7.2.2   pg 7-7
 _gdt_els = (
     DSFLD(0, 0,'',[DSBLD(2,3,0xffff,0),DSBLD(4,4,0xff,16),DSBLD(7,7,0xff,24)], []),
     DSFLD(0,10,'',[DSBLD(0,1,0xffff,0),DSBLD(6,6,0x0f,16)], []),
@@ -275,7 +240,7 @@ _gdt_els = (
 
 ds_gdt = DS('gdt', 'global descriptor table', 8, 1, 54, '%03x ', _gdt_els)
 
-# tss: swdev3a s7.2.1 pg 7-5
+# tss: intel swdev3a s7.2.1 pg 7-5
 _tss_els = (
     DSFLD( 0, 2,   'ss0 ',[DSBLD(  8,  9,    0xffff,0)],[]),
     DSFLD( 0, 0,   '_res',[DSBLD( 10, 11,    0xffff,0)],
@@ -334,22 +299,22 @@ _tss_els = (
 ds_tss = DS('tss', 'task state', 104, 15, 30, '\b---- tss @ 0x%x', _tss_els)
 
 
-# rflags: swdev1 s3.4.3  pg 3-21 fig 3-8
+# rflags: intel swdev1 s3.4.3  pg 3-21 fig 3-8
 _rflags_els = (
     DSFLD(0, 0, '_',[DSBLD(0,2,0xffffff,0)],
         # print the flags left to right
-        [DSVAL(0x200000,0x200000,'id '),
-         DSVAL(0x100000,0x100000,'vp '),  DSVAL(0x080000,0x080000,'vi '),
-         DSVAL(0x040000,0x040000,'ac '),  DSVAL(0x020000,0x020000,'v8 '),
-         DSVAL(0x010000,0x010000,'r '),   DSVAL(0x004000,0x004000,'nt '),
-         DSVAL(0x003000,0x001000,'io1 '),
-         DSVAL(0x003000,0x002000,'io2 '), DSVAL(0x003000,0x003000,'io3 '),
+        [DSVAL(0x200000,0x200000,'id'),
+         DSVAL(0x100000,0x100000,' vp'),  DSVAL(0x080000,0x080000,' vi'),
+         DSVAL(0x040000,0x040000,' ac'),  DSVAL(0x020000,0x020000,' v8'),
+         DSVAL(0x010000,0x010000,' r'),   DSVAL(0x004000,0x004000,' nt'),
+         DSVAL(0x003000,0x001000,' io1'),
+         DSVAL(0x003000,0x002000,' io2'), DSVAL(0x003000,0x003000,' io3'),
 
-         DSVAL(0x000800,0x000800,'o'),
-         DSVAL(0x000400,0x000400,'d'), DSVAL(0x000200,0x000200,'i'),
-         DSVAL(0x000100,0x000100,'t'), DSVAL(0x000080,0x000080,'s'),
-         DSVAL(0x000040,0x000040,'z'), DSVAL(0x000010,0x000010,'a'),
-         DSVAL(0x000004,0x000004,'p'), DSVAL(0x000001,0x000001,'c')]),
+         DSVAL(0x000800,0x000800,' o'),
+         DSVAL(0x000400,0x000400,' d'), DSVAL(0x000200,0x000200,' i'),
+         DSVAL(0x000100,0x000100,' t'), DSVAL(0x000080,0x000080,' s'),
+         DSVAL(0x000040,0x000040,' z'), DSVAL(0x000010,0x000010,' a'),
+         DSVAL(0x000004,0x000004,' p'), DSVAL(0x000001,0x000001,' c')]),
 )
 
 ds_rflags = DS('flags', 'cpu 32bit flags', 4, 1, 45, None, _rflags_els)

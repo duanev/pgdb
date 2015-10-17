@@ -74,15 +74,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       to make pgdb handle elf executables and object files if it means
 #       breaking the text based current approach. (but a "different" version
 #       of pgdb would be fine as a complete gdb replacement)
+#   - perhaps why others have not tried this before is that the gcc tool
+#       chain (using objdump) does not seem to have well defined listing
+#       file formats.  I wrote this initially for NASM et. al. but of course
+#       the 800 pound gorilla want's to play too - so objdump support has
+#       been hacked in.  at the moment the problem is that hand coded as
+#       source generates (via objdump) listing files where source labels
+#       do not have a corresponding symbol in the symbol table (you have
+#       to use .global to make a label a symbol) and without a symbol
+#       (that gets fixed up by the linker) we can't match the current ip
+#       with the source line that generated the next instruction.
 #   - "pinning" the source window is one workaround for overlapping address
 #       spaces.  Pressing a number key twice pins a source window; pressing
 #       any other number key unpins the source window, as does a clearly
 #       better choice that causes an automatic switch.
 #   - when generating .lst files using gcc and objdump, be sure to use:
 #           $ gcc -O0 ...
-#           $ objdump -S ...
-#   - symbol support (from a map file) was added for gcc/objdump
-#       nasm so far doesn't need it.
 #   - segment support is questionable, but for non-segmented architectures,
 #       defining a segment to be like an overlay works fine, where each
 #       overlay gets a unique number.
@@ -429,7 +436,7 @@ class GdbClient(asyncore.dispatcher):
         self._threads = []
         self.current_thread = None      # 1 based
         self.stopped_thread = None      # None = emulator running
-        # eventually support all this?
+        # eventually support all this?  qemu doesn't yet ...
         #self.queue_cmd('qSupported:multiprocess+;xmlRegisters=i386;qRelocInsn+')
         # initiate the startup sequence
         self.queue_cmd('qSupported')
@@ -796,7 +803,7 @@ class GdbClient(asyncore.dispatcher):
 # we make users download, I'll bet we loose a big chunk of our audience - each
 # dependency!  Yeah, its geometric.  So until fads makes it in to the core
 # python install(!), I'm refusing to make it a library.  *You* can, of course
-# if you want, but I will not require users to setup extra support libraries
+# if you want, but *I* will not require users to setup extra support libraries
 # to make pgdb run.  Besides, since I'm switching architecture modules out on
 # the fly, FADS should only really be loaded once even though many of the
 # modules use it.  What follows are the member functions for the FADS system
@@ -805,8 +812,8 @@ class GdbClient(asyncore.dispatcher):
 # Note: it would be nice if I could include all the DS class constructors
 # here but this opens a whole can of worms including a chicken-egg module
 # load issue for which I currently don't see a clean solution.  The classes
-# must be available *while* the architecture submodule is being imported ...
-# I don't think even create_module() can deal with this yet.
+# must be available to the module *while* the architecture submodule is being
+# imported ...  I don't think even create_module() can deal with this yet.
 # For now, the DS class constructors will have to be pasted into each arch
 # module that uses them.  (no library!  users get to be able to copy
 # pgdb.py and a few of the arch modules of their choice to a new location
@@ -1126,7 +1133,7 @@ def set_watchpoint(text):
         update_status('++ setting %s' % cmd, CPdbg)
         Gdbc.queue_cmd(cmd)
 
-def fixup_lookup(label, src):
+def lookup_fixup(label, src):
     for name, offset, segments, fixup in src.codesyms:
         if name == label:
         # and len(set(segments).intersection(set(srcwin.segments))) > 0:
@@ -1719,6 +1726,7 @@ class Src(Background_panel):
             #pass
         elif self.ftype == None:
             # don't know the file type yet, look for clues line by line
+            # yup, kinda fuzzy and thus questionable
             re_objdump = re.search('file format elf', ln)
             if re_objdump:
                 self.ftype = 'objdump'
@@ -1846,21 +1854,25 @@ class Src(Background_panel):
                         label = name
             #Log.write('++ best %08x %s\n' % (best, self.fname))
             if best != None:
-                # We change tabs to spaces when the source file is loaded
-                # so the trailing space in the search below is dependable.
+                # We change tabs to spaces when the source file is loaded so
+                # the trailing space in the 'sstr' search below is dependable.
                 # But I'm not sure about the leading space, suppose a single
                 # C function is longer than 4k bytes of code?  0x1000
                 # is the space still there?
                 #
                 # base is used here instead of best because of the way objdump
-                # displays instructions within functions - instruction addreses
+                # displays instruction addresses within functions - addreses
                 # are displayed relative to the segment base address instead of
                 # the the function address.
-                xx = ' %x: ' % (ip - base)
-                Log.write('ip_search: %s %s\n' % (label, xx))
-                # lookup label first, then offset
-                self.search(hilitetyp, label, len(label)+12)
-                self.search(hilitetyp, xx, 8, restart=False, quiet=True)
+                sstr = ' %x: ' % (ip - base)
+                Log.write('ip_search: [%s] -> [%s]\n' % (label, sstr))
+                # lookup label first, but confine the search to the left
+                # margin (ought to replace this with something like:
+                #         re.search('[0-9a-f]* <([\w_]*)>:', ln) ... the same
+                #         way read_nextip_at_or_after_focus_point() works)
+                self.search(hilitetyp, label, len(label)+20)
+                # then limit the offset search to the first 8 characters
+                self.search(hilitetyp, sstr, 8, restart=False, quiet=True)
                 return
 
     def read_nextip_at_or_after_focus_point(self):
@@ -1900,7 +1912,7 @@ class Src(Background_panel):
                 or len(set(keywords).intersection(set(Non_opcode_keywords))) > 0:
                     ip = None
                     continue
-                # found the next valid ip!
+                # found the next valid ip
                 Nextip = '%x' % (self.offset + int(ip , 16))
                 ipl = l
                 xs = 7
@@ -1913,7 +1925,7 @@ class Src(Background_panel):
             for l in range(start_line, 0, -1):
                 mobj = re.search('[0-9a-f]* <([\w_]*)>:', self.lines[l])
                 if mobj:
-                    #print('mobj: %s' % str(mobj.group(1)), file=sys.stderr)
+                    #Log.write('++ mobj: %s\n' % str(mobj.group(1)), CPdbg)
                     lbln = mobj.group(1)
                     lbll = l
                     break
@@ -1928,6 +1940,8 @@ class Src(Background_panel):
                 ln = self.lines[l]
                 if len(ln) < 5:
                     continue
+                # precarious! depending on objdump to always print offsets
+                # with a colon in the 4th column :O
                 if self.lines[l][4] == ':':
                     ip = self.lines[l][0:4].strip()
                     ipl = l
@@ -1942,11 +1956,23 @@ class Src(Background_panel):
             # ipl now should point to the first line of code below the focus
             # point and lbll,lbln document the .text label for that line of
             # code, compute the ip for the line of code
+            Log.write('++ lbln(%s) ip(%s)\n' % (lbln, ip), CPdbg)
             if lbln and ip != None:
-                fixup = fixup_lookup(lbln, self)
-                if fixup:
-                    Nextip = '%x' % (fixup + int(ip, 16))
-                    #Log.write('++ nextip=' + Nextip + '\n', CPdbg)
+                fixup = lookup_fixup(lbln, self)
+                if not fixup:
+                    # so when 'as' assembly is being written by hand, the
+                    # labels that objdump inserts do not also have to be
+                    # symbols ...  which makes this whole approach to scanning
+                    # listing files non determinant.   we have to be able to
+                    # take each relative offset we find in a listing file and
+                    # compute the corresponding actual IP - else this is all
+                    # going to fail.
+                    #
+                    # in the absence of a symbol for our lable, try and use
+                    # the source file's base offset
+                    fixup = self.offset
+                Nextip = '%x' % (fixup + int(ip, 16))
+                Log.write('++ nextip=' + Nextip + '\n', CPdbg)
 
         else:
             update_status('unsupported file type [%s]' % self.ftype, CPhi)

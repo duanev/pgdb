@@ -191,10 +191,8 @@ have_cpuid :
 
     mov  eax,pgtb0 + 7      ; page table 0: present, pl=3, r/w
     stosd                   ; ... pl=3 for now (simplify vga access)
-;   mov  eax,pgtb1 + 7      ; page table 1: present, pl=3, r/w
-;   stosd                   ; ... app memory
-    xor  eax,eax            ; invalidate the rest of the app laddr space
-    mov  ecx,0x400-1        ; (yeah, only one pgdir for kernel+apps for now)
+    xor  eax,eax            ; invalidate the rest of the addr space
+    mov  ecx,0x400-1
     rep stosd
 
             ; assume pgtb0 physically follows pgdir
@@ -212,13 +210,6 @@ pgtb0_fill :
     xchg eax,ebx
     add  eax,0x1000
     loop pgtb0_fill
-
-            ; assume pgtb1 physically follows pgtb0
-            ; pgtb1 is the first page table for app code/data/stack
-
-;    xor  eax,eax            ; invalidate the app logical address space
-;    mov  ecx,0x400          ; (we'll fill in what we need later)
-;    rep stosd
 
             ; enable paging and protected mode
 
@@ -245,6 +236,7 @@ bits 64                     ; instructions after this point are 64bit
     mov  ds,ax              ; initialize the data segments
     mov  es,ax
     mov  ss,ax
+    mov  fs,ax
     mov  gs,ax
 
     ; ---- debug marker
@@ -373,7 +365,6 @@ pml4e equ 0x1000            ; use some of the free memory below us
 pdpte equ 0x2000            ; code above assumes this follows pml4e
 pgdir equ 0x3000            ; code above assumes this follows pdpte
 pgtb0 equ 0x4000            ; code above assumes this follows pgdir
-;pgtb1 equ 0x5000            ; code above assumes this follows pgtb0
 
 idt equ 0x6000
 idt_end equ idt+48*8        ; 32 sw + 16 remapped hw vectors
