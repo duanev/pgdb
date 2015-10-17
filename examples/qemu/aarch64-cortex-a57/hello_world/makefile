@@ -1,17 +1,18 @@
+CROSS_COMPILE ?= aarch64-linux-gnu
 
 all: startup.lst test.bin 
 
 startup.o: startup.s
-	aarch64-linux-gnu-as -g startup.s -o startup.o
+	$(CROSS_COMPILE)-as -g startup.s -o startup.o
 
 startup.lst: startup.o
-	aarch64-linux-gnu-objdump -d startup.o > startup.lst
+	$(CROSS_COMPILE)-objdump -d startup.o > startup.lst
 
 test.elf: test.ld startup.o
-	aarch64-linux-gnu-ld -T test.ld startup.o -Map test.map -o test.elf
+	$(CROSS_COMPILE)-ld -T test.ld startup.o -Map test.map -o test.elf
 
 test.bin: test.elf
-	aarch64-linux-gnu-objcopy -O binary test.elf test.bin
+	$(CROSS_COMPILE)-objcopy -O binary test.elf test.bin
 
 clean:
 	-rm -f *.o *.lst *.map *.bin

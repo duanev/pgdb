@@ -18,10 +18,6 @@ exit both and start over.
 
 Bugs:
 
-    In pgdb, the suggested address for 'b' breakpoint, and the 'j'
-    command only work at the beginning of the startup.lst source
-    file.
-
     The names for the a57 psr flags are not right.
 
 
