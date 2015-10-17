@@ -21,7 +21,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
        1-9,0 - select source window to display (twice to pin)
            / - text search source window (prompts for text)
            n - next text search
-         b/w - set a breakpoint/watchpoint (prompt for addr)
+         b/w - set a breakpoint/watchpoint (prompts for addr)
            v - clear all breakpoints and watchpoints
            m - new memory window (prompts for address)
            M - destroy active memory window
