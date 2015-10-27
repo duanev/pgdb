@@ -44,40 +44,6 @@ times 11-($-$$)  db 0
 ; compute the size of the kernel image in 512 byte sectors
 nsectors equ codesize/512
 
-; -------- protected-mode support functions --------
-;bits 32
-
-;align 4
-;IRQA equ 32                 ; system timer interrupt (after remap)
-;int_handler_timer :
-;    mov  ax,videosel        ; point gs at video memory
-;    mov  gs,ax
-;    mov  bl,byte [gs:1]     ; inc the color of the first two chars
-;    inc  bl
-;    and  bl,0xf             ; just the foreground
-;    mov  byte [gs:1],bl
-;    mov  byte [gs:3],bl
-;    mov  al,0x20
-;    out  0x20,al            ; signal end of interrupt (eoi)
-;    iret
-
-;F - white
-;E - yellow
-;D - magenta
-;C - red
-;B - cyan
-;A - green
-;9 - blue
-;8 - dark grey
-
-;align 4
-;IRQB equ 33                 ; keyboard interrupt (after remap)
-;int_handler_kbd :
-;    cli
-;    mov  al,0x20
-;    out  0x20,al            ; signal end of interrupt (eoi)
-;    iret
-
 ; -------- main (enter protected mode) --------
 bits 16
 align 2
@@ -107,30 +73,6 @@ main :
                             ; puts_vga_rm leaves gs pointing at video mem
     mov  byte [gs:1],0xE    ; turn the first two chars yellow
     mov  byte [gs:3],0xE
-
-    ; re-program the 8259's to move the hardware vectors
-    ; out of the soft int range ... what were people thinking!
-
-;    mov  al,0x11
-;    out  0x20,al            ; init the 1st 8259
-;    mov  al,0x11
-;    out  0xA0,al            ; init the 2nd 8259
-;    mov  al,0x20
-;    out  0x21,al            ; base the 1st 8259 at 0x20
-;    mov  al,0x28
-;    out  0xA1,al            ; base the 2nd 8259 at 0x28
-;    mov  al,0x04
-;    out  0x21,al            ; set 1st 8259 as master
-;    mov  al,0x02
-;    out  0xA1,al            ; set 2nd 8259 as slave
-;    mov  al,0x01
-;    out  0x21,al
-;    mov  al,0x01
-;    out  0xA1,al
-;    mov  al,0x00
-;    out  0x21,al
-;    mov  al,0x00
-;    out  0xA1,al
 
     ; ---- verify this is a 64bit processor
 
@@ -181,18 +123,18 @@ have_cpuid :
 
             ; assume pdpte physically follows pml4
 
-    mov  eax,pgdir + 7      ; next setup the pdpte
+    mov  ax,pgdir + 7       ; next setup the pdpte
     stosd
     xor  eax,eax
-    mov  ecx,0x400-1
+    mov  cx,0x400-1
     rep  stosd
 
             ; assume pgdir physically follows pdpte
 
-    mov  eax,pgtb0 + 7      ; page table 0: present, pl=3, r/w
+    mov  ax,pgtb0 + 7       ; page table 0: present, pl=3, r/w
     stosd                   ; ... pl=3 for now (simplify vga access)
     xor  eax,eax            ; invalidate the rest of the addr space
-    mov  ecx,0x400-1
+    mov  cx,0x400-1
     rep stosd
 
             ; assume pgtb0 physically follows pgdir
@@ -201,8 +143,8 @@ have_cpuid :
     stosd                   ; access to page 0 will always cause a fault
     stosd
     mov  ebx,eax
-    mov  eax,0x1000 + 3     ; rest are direct map: present, pl=0, r/w
-    mov  ecx,0x200-1
+    mov  ax,0x1000 + 3      ; rest are direct map: present, pl=0, r/w
+    mov  cx,0x200-1
 pgtb0_fill :
     stosd
     xchg eax,ebx
@@ -218,7 +160,7 @@ pgtb0_fill :
 
     mov ecx,0xc0000080      ; get the efer msr
     rdmsr    
-    or  eax,0x00000100      ; set lme
+    or  ax,0x00000100       ; set lme
     wrmsr
 
     mov eax,cr0
@@ -232,38 +174,19 @@ pgtb0_fill :
 flush_ip1: 
 bits 64                     ; instructions after this point are 64bit
 
-    mov  ax,datasel   
-    mov  ds,ax              ; initialize the data segments
-    mov  es,ax
-    mov  ss,ax
+    mov  ax,datasel         ; yes its silly to load the segments regs in 64bit
+    mov  ds,ax              ; mode (only fs & gs can be used) but this helps us
+    mov  es,ax              ; check to see if we are parsing the qemu register
+    mov  ss,ax              ; dumps correctly
     mov  fs,ax
+    mov  ax,videosel
     mov  gs,ax
 
     ; ---- debug marker
-    mov  byte [gs:0xb8001],0xA    ; turn the first two chars green
-    mov  byte [gs:0xb8003],0xA
+    mov  byte [gs:rbx+1],0xA        ; turn the first two chars green
+    mov  byte [gs:rbx+3],0xA
 
-    ; ---- setup interrupt handlers
-
-;   mov  eax,int_handler_timer
-;   mov  [idt+IRQA*8],ax
-;   mov  word [idt+IRQA*8+2],codesel
-;   mov  word [idt+IRQA*8+4],0x8E00
-;   shr  eax,16
-;   mov  [idt+IRQA*8+6],ax
-
-;   mov  eax,int_handler_kbd
-;   mov  [idt+IRQB*8],ax
-;   mov  word [idt+IRQB*8+2],codesel
-;   mov  word [idt+IRQB*8+4],0x8E00
-;   shr  eax,16
-;   mov  [idt+IRQB*8+6],ax
-
-;   lidt [idtr]                     ; install the idt
-;   mov  sp,kstack_size             ; initialize the stack
-
-
-     sti
+    ;sti                     ; can't do this ...
 idle :
     hlt                     ; wait for interrupts
     jmp  idle
@@ -307,34 +230,47 @@ datastart :
 
 gdt :
 nullsel equ $-gdt           ; nullsel = 0h
-    dd 0,0                  ; first descriptor per convention is 0
+    dq 0,0                  ; first descriptor per convention is 0
 
-codesel equ $-gdt           ; codesel = 8h  4Gb flat over all logical mem
+codesel equ $-gdt           ; codesel = 10h  4Gb flat over all logical mem
     dw 0x0000               ; limit 0-15
     dw 0x0000               ; base  0-15
     db 0x00                 ; base 16-23
     db 0x9a                 ; present, dpl=0, code e/r
-    db 0x20                 ; 32bit, 4k granular, limit 16-19
+    db 0x20                 ; 4k granular, 64bit/8bit, limit 16-19
     db 0x00                 ; base 24-31
+    dd 0                    ; base 32-63
+    dd 0
 
-datasel equ $-gdt           ; datasel = 10h  4Gb flat over all logical mem
+datasel equ $-gdt           ; datasel = 20h  4Gb flat over all logical mem
     dw 0x0000               ; limit 0-15
     dw 0x0000               ; base  0-15
     db 0x00                 ; base 16-23
     db 0x92                 ; present, dpl=0, data r/w
-    db 0x00                 ; 32bit, 4k granular, limit 16-19
+    db 0x20                 ; 4k granular, 64bit/8bit, limit 16-19
     db 0x00                 ; base 24-31
+    dd 0                    ; base 32-63
+    dd 0
+
+videosel equ $-gdt          ; videosel = 30h
+    dw 3999                 ; limit 80*25*2-1
+    dw 0x8000               ; base 0xb8000
+    db 0x0b
+    db 0x92                 ; present, dpl=0, data, r/w
+    db 0x20                 ; byte granular, 64bit/8bit
+    db 0
+    dd 0                    ; base 32-63
+    dd 0
 
 gdt_end :
 
 gdtr :
     dw gdt_end - gdt - 1    ; gdt length
-    dd gdt                  ; gdt physical address
+    dq gdt                  ; gdt physical address
 
 idtr :
     dw idt_end - idt - 1    ; length of the idt
-    dd idt                  ; address of the idt
-
+    dq idt                  ; address of the idt
 
 bootmsg     db      "OZ v0.00.64 - 2015/10/12",0
 no64msg     db      "cpu not 64bit ",0
