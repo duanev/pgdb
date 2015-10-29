@@ -223,10 +223,12 @@ _gdt_els = (
                      DSVAL(0x1a,0x18,' e/o'),  DSVAL(0x1a,0x1a,' e/r'),
                      DSVAL(0x11,0x11,' accessed')]),
     DSFLD(0,21,'',[DSBLD(6,6,0xff,0)],
-                    [DSVAL(0x40,0x00,' 16bit'),DSVAL(0x20,0x20,' 64bit')])
+                    [DSVAL(0x60,0x00,' 16bit'),DSVAL(0x60,0x20,' 64bit'),
+                     DSVAL(0x60,0x60,' \rerr\r')])
 )
 
-ds_gdt = DS('gdt', 'global descriptor table', 8, 1, 54, '%03x ', _gdt_els)
+#           name,  lname,                  dlen, height, width, hdr, elements
+ds_gdt = DS('gdt', 'global descriptor table', 8, 1, 58, '%03x ', _gdt_els)
 
 # tss: intel swdev3a s7.2.1 pg 7-5
 _tss_els = (

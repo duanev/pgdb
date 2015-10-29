@@ -258,7 +258,7 @@ videosel equ $-gdt          ; videosel = 30h
     db 0x0b
     db 0x92                 ; present, dpl=0, data, r/w
     db 0x20                 ; byte granular, 64bit/8bit
-    db 0
+    db 0                    ; base 24-31
     dd 0                    ; base 32-63
     dd 0
 

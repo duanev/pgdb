@@ -1455,7 +1455,7 @@ class Mem_ds(Movable_panel):
             # display gdt,ldt,idt entries relative to 0, not the mem addr
             if self.ds_spec.name in ['gdt', 'ldt', 'idt']:
                 addr = 0
-            for ln in Arch.ds_print(data, self.ds_spec, addr):
+            for ln in ds_print(data, self.ds_spec, addr):
                 # has line changed?
                 if not self.lines \
                 or len(self.lines) == 0 \

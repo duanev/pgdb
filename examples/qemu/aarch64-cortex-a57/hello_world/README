@@ -5,7 +5,7 @@ $ cd pgdb/examples/qemu/arm-versatilepb/hello_world
 $ qemu-system-aarch64 -machine virt -cpu cortex-a57 -m 128 -kernel test.bin -s -S -monitor stdio
 (then in another terminal)
 $ cd pgdb
-$ python pgdb.py -gccmap examples/qemu/aarch64---
+$ python pgdb.py -gccmap examples/qemu/aarch64-cortex-a57/hello_world/test.map
 
 then press 'h', 'l', 'j' to get rolling,
 and 's' repeatedly to single-step,
