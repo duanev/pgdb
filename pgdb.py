@@ -1705,24 +1705,39 @@ class Src(Background_panel):
 
         self.make_pad(self.lines, cols)
 
+        if self.offset == None:
+            # if no offset was supplied and we didn't find one, try 0
+            self.offset = 0
+            off = 'unset'
+            cp = CPerr
+            Log.write(fname + ' has no starting address')
+        else:
+            off = '%08x' % self.offset
+            cp = CPnrm
+        Log.write('loaded  %-20s %-8s %8s:%s\n' % (os.path.basename(fname),
+                            self.ftype, str(self.segments), off), cp)
+
         # make the first source file visible
         if len(Srcs) == 1 and not Active_src:
             Active_src = self
             self.center()
 
-        off = '%08x' % self.offset if self.offset else 'unset'
-        Log.write('loaded  %-20s %-8s %8s:%s\n' % (os.path.basename(fname),
-                            self.ftype, str(self.segments), off))
-
     def line_parse(self, ln):
         if self.ftype == 'nasmlst':
             # if its a nasm .lst file, look for 'section .text start='
-            mobj = re.search('section\s*.text\s*start=0x[0-9A-Fa-f]+', ln)
+            mobj = re.search('section\s*.text\s*start=0x[0-9a-f]+', ln, re.I)
             if mobj:
                 if not self.segments:
                     self.segments = [0]
                 if not self.offset:
                     self.offset = int(mobj.group().split('=')[-1].strip(), 16)
+            # or 'org'
+            mobj = re.search('org\s*0x[0-9a-f]+', ln, re.I)
+            if mobj:
+                if not self.segments:
+                    self.segments = [0]
+                if not self.offset:
+                    self.offset = int(mobj.group().split()[1].strip(), 16)
         #elif self.ftype == 'objdump':
             # for the gcc toolchain, the map file has the .text section origin
             #pass
@@ -2106,7 +2121,7 @@ def load_gccmap_file(fname, segs, file_base):
                 lstfname = os.path.join(path, t4.split('.')[0] + '.lst')
                 sec_base = int(t2, 16)
                 file_offset = int(t2, 16)
-                srcobj = match_src_file (lstfname, segs)
+                srcobj = match_src_file(lstfname, segs)
                 if not srcobj:
                     # we don't know the ftype, let Src() figure it out
                     srcobj = Src(lstfname, None, segs, file_base + file_offset)

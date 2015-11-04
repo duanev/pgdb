@@ -7,16 +7,15 @@ PGDB provides source level debugging for assembly code such as NASM
 built ROMS and kernels.  Some support is also available for the GCC
 tool chain.
 
-![ScreenShot](http://imgur.com/sq0o6tf)
-<img src="http://imgur.com/sq0o6tf" title="ScreenShot">
-
 You only need pgdb.py and pgdb_<arch>.py for the architecture you
 want to debug in your current directory or path.  Python 2.7 and 3
 supported.
 
 PGDB video demo/tutorial on youtube:
+
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=TuvjGCcVXMc" target="_blank"><img src="http://img.youtube.com/vi/TuvjGCcVXMc/0.jpg" 
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+
 
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
 
@@ -66,6 +65,10 @@ memory window address help:
 
     ex:    gdt@mygdt,c
 
+
+
+![ScreenShot](http://imgur.com/sq0o6tf)
+<img src="http://imgur.com/sq0o6tf" title="ScreenShot">
 
 
 
