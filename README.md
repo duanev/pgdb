@@ -10,6 +10,14 @@ tool chain.
 ![ScreenShot](http://imgur.com/sq0o6tf)
 <img src="http://imgur.com/sq0o6tf" title="ScreenShot">
 
+You only need pgdb.py and pgdb_<arch>.py for the architecture you
+want to debug in your current directory or path.  Python 2.7 and 3
+supported.
+
+PGDB video demo/tutorial on youtube:
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=TuvjGCcVXMc" target="_blank"><img src="http://img.youtube.com/vi/TuvjGCcVXMc/0.jpg" 
+alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
 
            h - toggles visibility of context sensitive help
@@ -56,11 +64,12 @@ memory window address help:
     struct names are defined in the arch modules.
     (count is again in hex)
 
-better docs coming soon (I promise!)
+    ex:    gdt@mygdt,c
 
 
 
-Donations gladly accepted :)
+
+Donations gladly accepted and will certainly attract more of my attention :)
 
     email: duanev at gmail
     bitcoin: 16yQJg1fXCvVUETQVpSoxLAwNPKXKRYvXN
