@@ -246,6 +246,8 @@ Help_text_mem_address = \
  or of the form: <struct>@<addr>,<count> where
  struct names are defined in the arch modules.
  (count is again in hex)
+
+ ex:    gdt@mygdt,c
 """
 
 import os
@@ -2155,7 +2157,7 @@ def load_src_file(fname_spec, ftype):
 
         # look for a nasmmap file that might accompany the lst file
         if ftype == "nasmlst":
-            fname = fname.split('.')[0] + '.map'
+            fname = fname.rsplit('.', 1)[0] + '.map'
             if file_exists(fname, None, warning=True):
                 load_nasmmap_file(fname, segments, srcobj)
             dump_symbols(srcobj)
@@ -2372,7 +2374,7 @@ def inputmode_breakpoint(c):
             Text = ''
             update_status(' ', CPnrm)
             return inputmode_normal
-        elif ch and ch in 'hH':
+        elif ch and ch in 'hH' and len(Text) == 0:
             Helps[1].toggle()
         elif ch:
             Text += ch
@@ -2407,7 +2409,7 @@ def inputmode_watchpoint(c):
             Text = ''
             update_status(' ', CPnrm)
             return inputmode_normal
-        elif ch and ch in 'hH':
+        elif ch and ch in 'hH' and len(Text) == 0:
             Helps[1].toggle()
         elif ch:
             Text += ch
@@ -2471,7 +2473,7 @@ def inputmode_memory(c):
             set_active_object(mem)
             Mems.append(mem)
             return inputmode_normal
-        elif ch and ch in 'hH':
+        elif ch and ch in 'hH' and len(Text) == 0:
             Helps[2].toggle()
         elif c == 0x7f:         # back
             Text = Text[:-1]
