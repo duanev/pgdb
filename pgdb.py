@@ -46,6 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   $ qemu-system-i386 -s -S ....     (opens a window (or not) and stops)
 #   (then from a separate terminal)
 #   $ python pgdb_x86.py -nasmlst myasmcode.lst -objdump myccode.lst ...
+#   (args are read left to right, the file type stays in effect until changed)
+#   $ python pgdb_x86.py -nasmlst src/{a,b,c}.lst -gccmap mapfiles/*.map
 #
 # implementation notes:
 #   - PGDB is a purely event driven app.  Keyboard events and gdb-rdp-tcp
@@ -194,8 +196,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # history:
 #   2015/10/12 - v0.05 - djv - released
 #   2015/10/15 - v0.06 - djv - moved fads functions inside pgdb
+#   2015/11/05 - v0.07 - djv - group cmdline files
 
-Version = "PGDB v0.06 2015/10/16"
+Version = "PGDB v0.07 2015/11/05"
 
 # We're fresh out of lines for the main help window - too many keys
 # to document.  (Note, we have to fit in 24 lines)  I can't seem to
@@ -207,7 +210,7 @@ Help_text_main = \
      tab - rotates the active window
        r - reorder windows (useful after resize)
  <enter> - refresh window, if cpu make it active
-   1-9,0 - select source window to display (twice to pin)
+<number> - select source window (twice to pin)(sh+N 11-20)
        / - text search source window (prompts for text)
        n - next text search
      b/w - set a breakpoint/watchpoint (prompts for addr)
@@ -1714,7 +1717,8 @@ class Src(Background_panel):
         else:
             off = '%08x' % self.offset
             cp = CPnrm
-        Log.write('loaded  %-20s %-8s %8s:%s\n' % (os.path.basename(fname),
+        Log.write('loaded %2d  %-20s %-8s %8s:%s\n' % (
+                            len(Srcs), os.path.basename(fname),
                             self.ftype, str(self.segments), off), cp)
 
         # make the first source file visible
@@ -2219,8 +2223,19 @@ def inputmode_normal(c):
         Active_cpu = None
         Active_mem = None
         Active_obj = None
-    elif ch and ch in '1234567890':
+    elif ch and ch in '1234567890!@#$%^&*()':
+        # currently handle 20 source windows
         if ch == '0': ch = '10'
+        if ch == '!': ch = '11'
+        if ch == '@': ch = '12'
+        if ch == '#': ch = '13'
+        if ch == '$': ch = '14'
+        if ch == '%': ch = '15'
+        if ch == '^': ch = '16'
+        if ch == '&': ch = '17'
+        if ch == '*': ch = '18'
+        if ch == '(': ch = '19'
+        if ch == ')': ch = '20'
         if int(ch)-1 < len(Srcs):
             if Active_src == Srcs[int(ch)-1]:
                 # Pin source window the second time a number key is pressed
@@ -2616,10 +2631,13 @@ def main(stdscr):
     Gdbc = GdbClient()
 
     # load src files
+    srctype = "nasmlst"             # default to nasm lst files
     for argc in range(1, len(sys.argv)):
         if sys.argv[argc] in ["-nasmlst", "-objdump", "-gccmap"]:
-            fname = sys.argv[argc+1]
-            load_src_file(fname, sys.argv[argc][1:])
+            srctype = sys.argv[argc][1:]
+        else:
+            fname = sys.argv[argc]
+            load_src_file(fname, srctype)
 
     stdscr.nodelay(1)               # make getch() non-blocking
     stdscr.timeout(100)             # (ms) reduce cpu usage while still

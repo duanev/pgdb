@@ -7,7 +7,7 @@ PGDB provides source level debugging for assembly code such as NASM
 built ROMS and kernels.  Some support is also available for the GCC
 tool chain.
 
-You only need pgdb.py and pgdb_<arch>.py for the architecture you
+You only need pgdb.py and pgdb_*arch*.py for the architecture you
 want to debug in your current directory or path.  Python 2.7 and 3
 supported.
 
@@ -25,7 +25,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
         back - makes no window active, start rotation at top
            r - reorder windows (useful after resize)
      <enter> - refresh window, if cpu make it active
-       1-9,0 - select source window to display (twice to pin)
+    <number> - select source window (twice to pin)(sh+N 11-20)
            / - text search source window (prompts for text)
            n - next text search
          b/w - set a breakpoint/watchpoint (prompts for addr)
