@@ -923,6 +923,7 @@ Active_obj   = None     # the active object (one of Cpu, Mem,or None)
 Active_cpu   = None     # the most relevant cpu
 Active_mem   = None     # blatant hack to support a single memory window
 Active_src   = None
+Recent_src   = []       # source window stickiness
 Pin_source   = False    # True if user has pinned a source window
 Nextip       = None     # updated when source window scrolls to highlighted ip
 Log          = None
@@ -1153,46 +1154,126 @@ def dictify_symbols(table):
         rval[name] = offset
     return rval
 
+# Ok so this is likely the messiest and fuzziest bit of code here.
+# locate_src() is supposed to guess which source file/window best
+# matches the current cpu's ip.  It would be deterministic if we
+# didn't support overlapping address spaces (either in overlay form
+# or multiple tasks all running in containers that appear identical
+# from the inside).
+#
+# I've made some good improvements since 0.06 and it works better
+# (pgdb can now switch to the source file that best matches single
+# step code flow) but it has become far less maintainable.  I know
+# how I want to re-write it all but it will have to wait a couple
+# weeks until I can find some time (today = Nov 5, 2015)
+#
+# What needs to happen is for source selection to follow this set of
+# priorities (the exising code doesn't follow them correctly yet).
+#
+#       1. If the cpu architecture is segmented, then the assigned
+#          segments for each source file (on the command line for now)
+#          must match the segment being used by the cpu.
+#
+#       2. If there is only one source file with a base offset below
+#          the current ip, then switch to it regardless.
+#
+#       Else an intellegent choice needs to be made that honors any
+#       overrides implied by the user - to do this the remaining
+#       priorities should be as follows.  From a list of candidate
+#       source files (in which an exact match for the current ip can
+#       be found):
+#
+#       3. If the candidate list length == 1, switch to that source
+#          file regardless.
+#
+#       4. Favor the pinned source file.
+#
+#       5. Favor the source file that has a label at the entry point
+#          where we first executed code in the source file ...
+#          (this one is quite fuzzy, and requires some sophisticated
+#          remembering)
+#
+#       6. Favor the most recent source file (don't flip back and
+#          forth on each single-step).
+#
+#       7. Favor a source file we've seen before.
+
 def locate_src(seg, ip):
     global Active_src, Pin_source
     # if a window is pinned, it, and only it, gets searched
     if  Pin_source \
     and Active_src.segments and seg in Active_src.segments \
     and Active_src.offset <= ip:
+        Log.write('++ pinned src\n', CPdbg)
         Active_src.ip_search(ip)
         return
 
     best_offset = None
     best_src = None
-    st = 'locating %x:%08x\n' % (seg, ip)
+    best_idx = None
+    dbg = 'locating %x:%08x\n' % (seg, ip)
+    dbg += 'active src %s\n' % os.path.basename(Active_src.fname)
+    dbg += 'recent %s\n' % str(
+                    [os.path.basename(src.fname) for src in Recent_src])
     n = 0
     # next, see if any src files have a starting offset that is below our ip
     src_candidates = []
     for src in Srcs:
-        st += 'seg{%s,%d}  ' % (str(src.segments), seg)
+        dbg += 'seg{%s,%d}  ' % (str(src.segments), seg)
         if src.segments and seg in src.segments:
-            st += 'ip{%x,%x}  ' % (src.offset, ip)
-            # choose src with the nearest offset just below our ip
+            dbg += 'ip{%x,%x}  ' % (src.offset, ip)
+            # choose src with the nearest base offset just below our ip
             if src.offset <= ip:
+                # if the ip can't be matched, it's not a good candidate 
+                if not src.ip_search(ip):
+                    dbg += '\nip not found in %s\n' % os.path.basename(src.fname)
+                    continue
                 src_candidates.append(src)
                 n += 1
-                if not best_offset or src.offset >= best_offset:
+                dbg += 'candidate %s' % os.path.basename(src.fname)
+                # the active source window is favored over all other candidates
+                if src == Active_src:
+                    best_src = src
+                    best_offset = src.offset
+                    dbg += '\n'
+                    break
+                # recent source files favored over new ones
+                if src in Recent_src:
+                    new_idx = Recent_src.index(src)
+                    if best_idx == None or new_idx < best_idx:
+                        best_src = src
+                        best_offset = src.offset
+                        best_idx = new_idx
+                # lastly, favor the nearest base offset to the ip
+                elif best_idx == None \
+                and (not best_offset or src.offset >= best_offset):
                     best_offset = src.offset
                     best_src = src
-                    st += 'yo %s' % os.path.basename(src.fname)
-        st += '\n'
-    # next, within the list of src candidates, look for a code address that
-    # is as close to the ip as possible but still below
-    for src in src_candidates:
-        for name, off, segs, base in src.codesyms:
+        dbg += '\n'
+    dbg += 'cands are %s\n' % str(
+                    [os.path.basename(src.fname) for src in src_candidates])
+    if best_src:
+        dbg += 'best %s\n' % str(os.path.basename(best_src.fname))
+        # next, if we have a best candidate, look for a code address
+        # that is as close to the ip as possible but still below
+        for name, off, segs, base in best_src.codesyms:
             if seg in segs and off <= ip:
                 if not best_offset or off >= best_offset:
                     best_offset = off
-                    best_src = src
-                    st += 'best now lbl=%s in %s\n' % (name,
-                                        os.path.basename(src.fname))
-    st += 'found %d src files that might work\n' % n
-    #Log.write(st, CPdbg)        # this one is frequently useful ...
+                    dbg += 'best now lbl=%s [%s]\n' % (name,
+                                        os.path.basename(best_src.fname))
+    else:
+        # last, within the list of src candidates, look for a code address
+        # that is as close to the ip as possible but still below
+        for src in src_candidates:
+            for name, off, segs, base in src.codesyms:
+                if seg in segs and off <= ip:
+                    if not best_offset or off >= best_offset:
+                        best_offset = off
+                        best_src = src
+                        dbg += 'best now lbl=%s in %s\n' % (name,
+                                            os.path.basename(src.fname))
+    Log.write(dbg, CPdbg)       # this one is frequently useful ...
     # assuming the offset will never be 0
     if best_offset:
         # if we only have one candidate, switch to it.
@@ -1205,6 +1286,7 @@ def locate_src(seg, ip):
                 update_status()
             Active_src = best_src
             Active_src.center()
+            Log.write('auto pick %s\n' % best_src.fname)
     else:
         # no source file seems to describe where ip is,
         # how about a generic disassembly Background panel as a default?
@@ -1802,7 +1884,7 @@ class Src(Background_panel):
         parms = self.hilites[typ]
         if not restart and not parms[Src.SP_TXT]:
             update_status('no previous search term for this window', CPerr)
-            return
+            return False
 
         # reset previously highlighted text
         self._unhilite()
@@ -1837,7 +1919,7 @@ class Src(Background_panel):
                     parms[Src.SP_STX] = x
                     self.rehilite(typ, parms)
                     self.center(ey+y - fy, x - fx)
-                    return
+                    return True
                 y += 1
                 x = 0
 
@@ -1849,17 +1931,19 @@ class Src(Background_panel):
             update_status(' [%s] not found' % parms[Src.SP_TXT], CPhi)
 
         self.rehilite(typ, parms)
+        return False
 
     def ip_search(self, ip, real_ip=True):
         # customized searches for ip values within each src file type
+        # return True if a match for the ip was found
         hilitetyp = HILITETYP_IP if real_ip else HILITETYP_TXT
 
         if self.ftype == 'nasmlst':         # 8 digits, uppercase hex
             if ip >= self.offset:
                 xx = ' %08X ' % (ip - self.offset)
-                #Log.write('ip=%08x  xx=%s\n' % (ip, xx))
-                self.search(hilitetyp, xx, 16)
-                return
+                #Log.write('++ ip=%08x  xx=%s\n' % (ip, xx), CPhi)
+                if self.search(hilitetyp, xx, 16):
+                    return True
         elif self.ftype == 'objdump':
             # find a code symbol, in the current source, below or at our ip
             best = None
@@ -1891,10 +1975,12 @@ class Src(Background_panel):
                 # margin (ought to replace this with something like:
                 #         re.search('[0-9a-f]* <([\w_]*)>:', ln) ... the same
                 #         way read_nextip_at_or_after_focus_point() works)
-                self.search(hilitetyp, label, len(label)+20)
+                if self.search(hilitetyp, label, len(label)+20) == None:
+                    return False
                 # then limit the offset search to the first 8 characters
-                self.search(hilitetyp, sstr, 8, restart=False, quiet=True)
-                return
+                if self.search(hilitetyp, sstr, 8, restart=False, quiet=True):
+                    return True
+        return False
 
     def read_nextip_at_or_after_focus_point(self):
         global Nextip
@@ -2185,6 +2271,15 @@ def load_src_file(fname_spec, ftype):
     elif ftype in ["gccmap"]:
         load_gccmap_file(fname, segments, offset)
 
+def credit_current_src():
+    # take single-stepping, or jumping to the current highlighted
+    # address, to mean the user is reasonably certain that the
+    # current source window is the right one,
+    # so give this window additional stickyness
+    if Active_src in Recent_src:        # maintain an LRU list
+        Recent_src.remove(Active_src)
+    Recent_src.insert(0, Active_src)
+
 #---------------------------------------------------------
 # inputmode_xxxx functions are passed the current key sym
 # and return the next inputmode function to be called.
@@ -2274,6 +2369,7 @@ def inputmode_normal(c):
         Helps[0].toggle()
     elif ch and ch in 'jJ':
         if Nextip:
+            credit_current_src()
             Text = Nextip.lstrip('0')
             if hexchk(Text):
                 set_breakpoint(hexval(Text))
@@ -2301,6 +2397,7 @@ def inputmode_normal(c):
         reorder_cpu_panels(Gdbc.stopped_thread, Gdbc.nthreads)
         refresh_all()
     elif ch and ch in 's':
+        credit_current_src()
         Gdbc.single_step()
     elif ch and ch in 'S':
         Gdbc.single_step_all()
