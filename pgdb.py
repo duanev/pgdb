@@ -30,7 +30,8 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-
+# (that's the BSD 3-clause)
+#
 #
 # Python GDB RDP client (replaces gdb for QEMU tcp debug)
 #
@@ -250,7 +251,7 @@ Help_text_mem_address = \
  struct names are defined in the arch modules.
  (count is again in hex)
 
- ex:    gdt@mygdt,c
+ ex:    gdt@mygdt,8
 """
 
 import os
@@ -1156,16 +1157,15 @@ def dictify_symbols(table):
 
 # Ok so this is likely the messiest and fuzziest bit of code here.
 # locate_src() is supposed to guess which source file/window best
-# matches the current cpu's ip.  It would be deterministic if we
-# didn't support overlapping address spaces (either in overlay form
-# or multiple tasks all running in containers that appear identical
-# from the inside).
+# matches the current cpu's ip.  It would be deterministic if I didn't
+# want it to also support overlapping address spaces (either as multiple
+# tasks all running in containers that appear identical from the
+# inside, or as overlays).
 #
 # I've made some good improvements since 0.06 and it works better
-# (pgdb can now switch to the source file that best matches single
-# step code flow) but it has become far less maintainable.  I know
-# how I want to re-write it all but it will have to wait a couple
-# weeks until I can find some time (today = Nov 5, 2015)
+# but it has become less maintainable.  I know *how* I want to
+# re-write it all but it will have to wait a couple weeks until I
+# can find some time (today = Nov 5, 2015)
 #
 # What needs to happen is for source selection to follow this set of
 # priorities (the exising code doesn't follow them correctly yet).

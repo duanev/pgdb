@@ -63,7 +63,7 @@ memory window address help:
     struct names are defined in the arch modules.
     (count is again in hex)
 
-    ex:    gdt@mygdt,c
+    ex:    gdt@mygdt,8
 
 
 
