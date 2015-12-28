@@ -7,8 +7,9 @@
 # history:
 #   2015/10/12 - v0.01 - djv - released
 #   2015/10/16 - v0.02 - djv - display cpsr flags
+#   2015/12/27 - v0.03 - djv - add cpu modes
 
-version = "PGDB arm v0.02 2015/10/16"
+version = "PGDB arm v0.03 2015/12/27"
 
 name = 'arm'
 
@@ -45,17 +46,12 @@ def generate_gspec(xml_tree):
     #Log.write(pprint.pformat(gspec) + '\n')
 
 
-# The length of the rdp 'g' register dump which is likely not
-# the best way to tell which architecture qemu is emulating
-gspec_len = 136
+spec = {  136: { 'mode':None,  'maxy':7,  'maxx':58, 'gspec':gspec } }
 
-
-cpu_maxy = 7
-cpu_maxx = 58
 
 # Cpu methods
 
-def cpu_reg_update(self, newregs):
+def cpu_reg_update(self, newregs, mode):
     strs = []
 
     def rdiff(y, x, fmt, rname, newr, oldr):

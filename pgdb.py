@@ -47,7 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   $ qemu-system-i386 -s -S ....     (opens a window (or not) and stops)
 #   (then from a separate terminal)
 #   $ python pgdb_x86.py -nasmlst myasmcode.lst -objdump myccode.lst ...
-#   (args are read left to right, the file type stays in effect until changed)
+#   (args are read left to right so shell wildcards work)
 #   $ python pgdb_x86.py -nasmlst src/{a,b,c}.lst -gccmap mapfiles/*.map
 #
 # implementation notes:
@@ -77,25 +77,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       to make pgdb handle elf executables and object files if it means
 #       breaking the text based current approach. (but a "different" version
 #       of pgdb would be fine as a complete gdb replacement)
-#   - perhaps why others have not tried this before is that the gcc tool
-#       chain (using objdump) does not seem to have well defined listing
-#       file formats.  I wrote this initially for NASM et. al. but of course
-#       the 800 pound gorilla want's to play too - so objdump support has
-#       been hacked in.  at the moment the problem is that hand coded as
-#       source generates (via objdump) listing files where source labels
-#       do not have a corresponding symbol in the symbol table (you have
-#       to use .global to make a label a symbol) and without a symbol
-#       (that gets fixed up by the linker) we can't match the current ip
-#       with the source line that generated the next instruction.
+#   - perhaps why others have not tried this follow-the-listing-file approach
+#       before is that the gcc tool chain (using objdump) does not seem to
+#       have well defined listing file formats.  I wrote this initially for
+#       NASM et. al. but of course the 800 pound gorilla want's to play too -
+#       so objdump support has been hacked in.  at the moment the problem
+#       is that hand coded 'as' source generates listing files (via objdump)
+#       where source labels do not have a corresponding symbol in the symbol
+#       table (you have to use .global in as to make a label a symbol) and
+#       without a symbol (that gets fixed up by the linker) we can't match
+#       the current ip with the source line that generated the next
+#       instruction.  hence ambiguity ...
 #   - "pinning" the source window is one workaround for overlapping address
 #       spaces.  Pressing a number key twice pins a source window; pressing
 #       any other number key unpins the source window, as does a clearly
-#       better choice that causes an automatic switch.
+#       better choice, which causes an automatic switch.
 #   - when generating .lst files using gcc and objdump, be sure to use:
 #           $ gcc -O0 ...
-#   - segment support is questionable, but for non-segmented architectures,
+#   - segment support may be questionable, but for non-segmented architectures,
 #       defining a segment to be like an overlay works fine, where each
-#       overlay gets a unique number.
+#       overlay gets a unique number.  need to support segments because
+#       some architectures need them ...
 #   - qemu-system-arm -kernel for some reason reports the pc values to be
 #       *relative* to the start address at 0x10000.  this messes everything up.
 #       for now, a *negative* segment offset brings the symbols into line,
@@ -104,11 +106,42 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       pgdb however keeps symbols found in the .text segment separate from
 #       symbols found in the .data segment.  text symbols work for breakpoint
 #       addresses, data symbols work for memory and watchpoint addresses.
-#       if to a mem address prompt you type gdt@mygdt and pgdb says 'error
+#       if at a mem address prompt you type gdt@mygdt and pgdb says 'error
 #       in [mygdt] at mygdt' then maybe you are missing a .data section.
 #   - bro, I just wanna read your code, why isn't this shit all in some README?
 #       because my young padawan, the less your crap is spread out, the
 #       easier it is to clean up.
+#
+#   ---- architecture support modules: alter egos and modes ----
+#       pgdb can do something a bit unusual: it can *reload* the arch module
+#       on the fly *if* the emulated processor transforms itself into some
+#       alter ego.  this is what Arch, Arch_name, load_arch_module() are
+#       about.  however, some processors let their cores run in different
+#       modes simultaneously (eg. x86).  multiple *concurrent* cpu modes are
+#       handled by a single arch module; but if some configuration flag in a
+#       procesor status word causes all the cores on the chip to change at
+#       once, then separate arch modules may be best approach with an alter
+#       ego switch (eg. load_arch_module()) on the fly when the flag changes.
+#
+#       confusing all this is how qemu is architected and it's slow cross
+#       platform transition to using xml files to describe cpu register sets.
+#       it would make sense for there to be one pgdb arch module for each
+#       qemu binary, but some binaries implement a subset of others
+#       (eg. i386 and x86_64) and we of course don't want to duplicate
+#       code.  it would make even more sense if qXfer:features:read
+#       could give us a unique arch string that we could simply map to a
+#       module name, but various qemu binaries don't support features:read
+#       yet. (and qemu has to deal with the multiple mode thing too - how is
+#       it going to telegraph that a new xml file needs to be retrieved?)
+#       right now, if features:read isn't supported, the only qemu signal
+#       that lets pgdb know what mode/architecture is being emulated is
+#       the length of the returned data for the rdp 'g' (get registers)
+#       command.  (we pray that this will continue to be unique for each
+#       arch/alterego/mode) and thus the current pgdb logic is:
+#           - if qXfer:features:read, pick the arch module from the xml name
+#             else use the user defined default (or command line -arch)
+#           - the emulated processor mode is based on the returned
+#             'g' reg set length and can change at any time for any core
 #
 # todo:
 #   - handle multiple breakpoints, let some remain active across continues.
@@ -116,7 +149,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       yellow which bytes have changed - should be able to embed the fancy
 #       \a \t control characters and use ccs() to make it a small bit simpler.
 #   - better expressions for memory addresses (allow more math and segment
-#       regs and do selector lookups for protected mode)
+#       regs and do selector lookups for x86 protected mode)
 #   - add an 'x' command to modify memory ...
 #   - add an 'r' command to modify registers ...
 #   - properly fetch multiple memory regions with chained rdp fetches.
@@ -198,8 +231,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   2015/10/12 - v0.05 - djv - released
 #   2015/10/15 - v0.06 - djv - moved fads functions inside pgdb
 #   2015/11/05 - v0.07 - djv - group cmdline files
+#   2015/12/27 - v0.08 - djv - add cpu modes
 
-Version = "PGDB v0.07 2015/11/05"
+Version = "PGDB v0.08 2015/12/27"
 
 # We're fresh out of lines for the main help window - too many keys
 # to document.  (Note, we have to fit in 24 lines)  I can't seem to
@@ -266,9 +300,9 @@ import traceback
 import importlib
 
 Arch = None
-Arch_name = 'i386'          # qemu-i386 doesn't offer any .xml files
-                            # oh oh, qemu-alpha doesn't either, nor do the
-                            # sparcs -- gees, put your fav default here!
+Arch_name = 'x86'           # neither qemu-i386 or qemu-x86_64 offer any .xml
+                            # files, nor does qemu-alpha or the sparcs - gees,
+                            # put your fav default here!
 
 Host_port = ('0.0.0.0', 1234)
 
@@ -324,16 +358,15 @@ def load_arch_module():
 
 class FakeArch(object):
     name = 'ERSATZ'
-    gspec = []
-    gspec_len = 0
+    spec = {}
     cpu_maxy = 2
     cpu_maxx = 6
 
-    def generate_gspec(self, tree): pass
+    def generate_gspec(self, tree): pass        # called if qXfer:features:read
     def alter_ego(self, n): return None
     def get_seg_register(self, x): return None
     def get_ip_register(self, x): return None
-    def cpu_reg_update(self, x, y): return []
+    def cpu_reg_update(self, regs): return []
 
 # ----------------------------------------------------------------------------
 # gdb client support
@@ -654,21 +687,26 @@ class GdbClient(asyncore.dispatcher):
 
     def process_regs(self):
         global Arch, Arch_name
-        if len(self.rbuf) != Arch.gspec_len:
-            new_name = Arch.alter_ego(len(self.rbuf))
+        # currently the only way to know qemu has switched cpu modes is by
+        # the length of the get register data.  if the current module doesn't
+        # support the length we received and it offers an alternate, switch.
+        arch_spec_lens = Arch.spec.keys()
+        spec_len = len(self.rbuf)
+        if not spec_len in arch_spec_lens:
+            new_name = Arch.alter_ego(spec_len)
             if new_name:
                 Arch = None
                 Arch_name = new_name
                 load_arch_module()      # presto changeo ...
                 # blank all the cpu windows
                 for cpu in Cpus.keys():
-                    Cpus[cpu].resize(Arch.cpu_maxy, Arch.cpu_maxx)
+                    y,x = Arch.spec[spec_len]['maxy'], Arch.spec[spec_len]['maxx']
+                    Cpus[cpu].resize(y, x)
 
             else:
-                err = '**** expected %d hex digits for the %s cpu architecture' % (
-                                Arch.gspec_len, Arch.name)
-                err += ' - but received %d (wrong cpu architecture) ****' % (
-                                len(self.rbuf))
+                err = '**** expected one of %s hex digits for the %s cpu architecture' % (
+                                str(arch_spec_lens), Arch.name)
+                err += ' - but received %d (ie. wrong cpu architecture) ****' % (spec_len)
                 update_status(err, CPerr)
                 Log.write(err.replace('-', '****\n****') + '\n', attr=CPerr)
                 return
@@ -676,15 +714,15 @@ class GdbClient(asyncore.dispatcher):
         th = self.current_thread
         i = n = 0
         newregs = {}
-        for spec in Arch.gspec:
-            if spec[2] <= len(self.rbuf):
+        for spec in Arch.spec[spec_len]['gspec']:
+            if spec[2] <= spec_len:
                 val = lsn2msn(self.rbuf[spec[1]:spec[2]])
                 newregs[spec[0]] = int(val, 16)
 
         # during the first pass, Cpus objects may not have been created
         if not th-1 in Cpus.keys():
-            Cpus[th-1] = Cpu(th-1, Arch.cpu_maxy, Arch.cpu_maxx)
-        Cpus[th-1].update(newregs)
+            Cpus[th-1] = Cpu(th-1, spec_len)
+        Cpus[th-1].update(newregs, spec_len)
         #Log.write('++++ newregs ' + str(newregs), CPdbg)
         refresh_all()
         # humm.... would like to fetch about 8 bytes of memory at the ip,
@@ -725,7 +763,7 @@ class GdbClient(asyncore.dispatcher):
         # extract the thread number
         th = int(self.rbuf[1:], 16)
         if not th-1 in Cpus.keys():
-            Cpus[th-1] = Cpu(th-1, Arch.cpu_maxy, Arch.cpu_maxx)
+            Cpus[th-1] = Cpu(th-1, 0)
         if not th-1 in self._threads:
             self.nthreads += 1
             self._threads.append(th-1)
@@ -810,7 +848,7 @@ class GdbClient(asyncore.dispatcher):
 # dependency!  Yeah, its geometric.  So until fads makes it in to the core
 # python install(!), I'm refusing to make it a library.  *You* can, of course
 # if you want, but *I* will not require users to setup extra support libraries
-# to make pgdb run.  Besides, since I'm switching architecture modules out on
+# to make pgdb run.  Besides, since can switch architecture modules out on
 # the fly, FADS should only really be loaded once even though many of the
 # modules use it.  What follows are the member functions for the FADS system
 # wrapped in a dictionary that I can export across modules.
@@ -819,7 +857,8 @@ class GdbClient(asyncore.dispatcher):
 # here but this opens a whole can of worms including a chicken-egg module
 # load issue for which I currently don't see a clean solution.  The classes
 # must be available to the module *while* the architecture submodule is being
-# imported ...  I don't think even create_module() can deal with this yet.
+# imported ...  create_module() doesn't seem to have a way to forward parts
+# of the loader environment and make them visible to the loading evnvironment.
 # For now, the DS class constructors will have to be pasted into each arch
 # module that uses them.  (no library!  users get to be able to copy
 # pgdb.py and a few of the arch modules of their choice to a new location
@@ -912,7 +951,7 @@ DSfns = {'ds_reconstruct_hex':    ds_reconstruct_hex,
 # nasm specifics
 
 # easier to blacklist non-opcode keywords than whitelist opcodes ...
-# only need to list the nasm keywords that create data.
+# only need to list the nasm non-opcode keywords that create data.
 Non_opcode_keywords = ['db', 'dw', 'dd', 'dq', 'times', 'align']
 
 # ----------------------------------------------------------------------------
@@ -1107,7 +1146,9 @@ def reorder_cpu_panels(stopped_thread, nthreads):
     # this function can place them nicely
     h,w = Stdscr.getmaxyx()
     cw = Cpus[0].w
+    Log.write('+++ cw(%d)\n' % cw)
     for i in range(nthreads-1, -1, -1):
+        Log.write('+++ ro(%d)\n' % i)
         Cpus[i].rise()
         # if the screen is too narrow, vertically stack cpus.
         # try to leave 15 columns for source display
@@ -1323,6 +1364,8 @@ class Movable_panel(object):
         self.w = w
         self.title = title
         self.visible = True
+        if h == 0:
+            h,w = 2,10
         self.win = curses.newwin(h,w, y,x)
         self.win.erase()
         self.win.attron(CPbdr)
@@ -1366,12 +1409,15 @@ class Movable_panel(object):
         self.visible = False
 
     def resize(self, y, x):
+        self.h = y
+        self.w = x
         self.win.resize(y, x)
         self.win.move(1, 0)
         self.win.clrtobot()
         self.win.attron(CPbdr)
         self.win.box()
-        self.win.attron(CPbdr)
+        self.win.attroff(CPbdr)
+        self.win.addstr(0, 1, self.title, CPtitle0)
 
     def toggle(self):
         if self.visible:
@@ -1404,15 +1450,20 @@ class Movable_panel(object):
 
 
 class Cpu(Movable_panel):
-    def __init__(self, i, y, x):
+    def __init__(self, i, mode):
         global Active_cpu, Active_obj
         h,w = Stdscr.getmaxyx()
+        if mode > 0:
+            y,x = Arch.spec[mode]['maxy'], Arch.spec[mode]['maxx']
+        else:
+            y,x = 0,0
         Movable_panel.__init__(self, y,x, i+2,i*3+4, ' cpu%d ' % i)
         self.i = i
         self.regs = {}          # register values are integers
+        self.mode = mode
         self.last_ip = None
 
-    def update(self, newregs):
+    def update(self, newregs, mode):
 
         if Gdbc.stopped_thread and self.i == Gdbc.stopped_thread-1:
             set_active_object(self)
@@ -1422,12 +1473,17 @@ class Cpu(Movable_panel):
         else:
             title_attr = curses.A_NORMAL
 
-        strs = Arch.cpu_reg_update(self, newregs)
+        if (self.mode != mode):
+            y,x = Arch.spec[mode]['maxy'], Arch.spec[mode]['maxx']
+            self.resize(y, x)
+
+        strs = Arch.cpu_reg_update(self, newregs, mode)
         self.add_strs(strs, CPnrm)
 
         # update regs
         for key, val in newregs.items():
             self.regs[key] = val
+        self.mode = mode
 
         if self == Active_cpu:
             self.locate()

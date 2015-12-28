@@ -6,8 +6,9 @@
 #
 # history:
 #   2015/10/16 - v0.01 - djv - released
+#   2015/12/27 - v0.02 - djv - add cpu modes
 
-version = "PGDB aarch64 v0.01 2015/10/16"
+version = "PGDB aarch64 v0.02 2015/12/27"
 
 name = 'aarch64'
 
@@ -44,11 +45,6 @@ def generate_gspec(xml_tree):
     #Log.write(pprint.pformat(gspec) + '\n')
 
 
-# The length of the rdp 'g' register dump which is likely not
-# the best way to tell which architecture qemu is emulating
-gspec_len = 536
-
-
 # ok, THIS is a challenging register display format!  we'd really like
 # to bring up pgdb in an 80x24 terminal minimally, but 32 64bit regs
 # really don't fit in 80x24 in any sensible way ... so I'm lopping off
@@ -60,12 +56,13 @@ gspec_len = 536
 # refuses to allow them to be moved).  Somewhere we'll have to tell users
 # that they need to use minimally a 90x24 terminal to start pgdb if they
 # want the cpu windows to be movable.
-cpu_maxy = 11
-cpu_maxx = 79
+
+spec = {  536: { 'mode':None,  'maxy':11,  'maxx':79, 'gspec':gspec } }
+
 
 # Cpu methods
 
-def cpu_reg_update(self, newregs):
+def cpu_reg_update(self, newregs, mode):
     strs = []
 
     def rdiff(y, x, fmt, rname, newr, oldr):
