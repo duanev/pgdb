@@ -3,6 +3,9 @@ Python GDB RDP client (replaces gdb for QEMU tcp debug)
 
 See READMEs in the example directories for quick start guides.
 
+No, seriously, to try out PGDB, pick an example directory and
+follow the README - that is the fastest way.
+
 PGDB provides source level debugging for assembly code such as NASM
 built ROMS and kernels.  Some support is also available for the GCC
 tool chain.
@@ -15,6 +18,16 @@ PGDB video demo/tutorial on youtube:
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=TuvjGCcVXMc" target="_blank"><img src="http://img.youtube.com/vi/TuvjGCcVXMc/0.jpg" 
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+
+** ************************************************************************ **
+**  I'm sorry I haven't been able to keep up with the evolving QEMU code    **
+**  base.  Many things are changing there, including the ABI used by PGDB.  **
+**  I originally tested PGDB against QEMU version 2.4.50 - I may need to    **
+**  upload a snapshot of this version to archive here with PGDB.            **
+**  There have also been some bugs or changes introduced in QEMU recently   **
+**  (2.8.0) that no longer support 32 bit mode in the x86_64 version.       **
+**  I'm hoping this is a temporary bug or a mistake ...                     **
+** ************************************************************************ **
 
 
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
@@ -42,7 +55,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
      ctrl+pageup/dn - scroll active window (ex: log,mem)
      arrows,pageup,pagedn,home - scroll source window
 
-breakpoint command help:
+### breakpoint command help:
     QEMU breakpoints are logical hex addresses (CS is not involved).
     ESC aborts set breakpoint.  A suggested breakpoint value is taken
     from the address in the source window highlighted in white.
@@ -51,7 +64,7 @@ breakpoint command help:
     the way down the screen).  The address highlighted in yellow is
     the current cpu's current IP.
 
-memory window address help:
+### memory window address help:
     Memory addresses can be simple expressions
     with hex (only) constants, register names,
     and * + or -  (no parentheses are allowed):

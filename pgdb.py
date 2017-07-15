@@ -1146,9 +1146,7 @@ def reorder_cpu_panels(stopped_thread, nthreads):
     # this function can place them nicely
     h,w = Stdscr.getmaxyx()
     cw = Cpus[0].w
-    Log.write('+++ cw(%d)\n' % cw)
     for i in range(nthreads-1, -1, -1):
-        Log.write('+++ ro(%d)\n' % i)
         Cpus[i].rise()
         # if the screen is too narrow, vertically stack cpus.
         # try to leave 15 columns for source display
