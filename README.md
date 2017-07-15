@@ -19,15 +19,17 @@ PGDB video demo/tutorial on youtube:
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=TuvjGCcVXMc" target="_blank"><img src="http://img.youtube.com/vi/TuvjGCcVXMc/0.jpg" 
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
-** ************************************************************************ **
-**  I'm sorry I haven't been able to keep up with the evolving QEMU code    **
-**  base.  Many things are changing there, including the ABI used by PGDB.  **
-**  I originally tested PGDB against QEMU version 2.4.50 - I may need to    **
-**  upload a snapshot of this version to archive here with PGDB.            **
-**  There have also been some bugs or changes introduced in QEMU recently   **
-**  (2.8.0) that no longer support 32 bit mode in the x86_64 version.       **
-**  I'm hoping this is a temporary bug or a mistake ...                     **
-** ************************************************************************ **
+****************************************************************************
+```
+I'm sorry I haven't been able to keep up with the evolving QEMU code
+base.  Many things are changing there, including the ABI used by PGDB.
+I originally tested PGDB against QEMU version 2.4.50 - I may need to
+upload a snapshot of this version to archive here with PGDB.
+There have also been some bugs or changes introduced in QEMU recently
+(2.8.0) that no longer support 32 bit mode in the x86_64 version.
+I'm hoping this is a temporary bug or a mistake ...
+```
+****************************************************************************
 
 
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
