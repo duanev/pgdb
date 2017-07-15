@@ -2,7 +2,7 @@
 # vi: set tabstop=8 expandtab softtabstop=4 shiftwidth=4
 
 """
-Copyright (c) 2015, Duane Voth
+Copyright (c) 2015,2016,2017 Duane Voth
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
