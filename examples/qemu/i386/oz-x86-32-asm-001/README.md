@@ -26,12 +26,11 @@ $ python pgdb.py -nasmlst examples/qemu/i386/oz-x86-32-asm-001/oz_fd.lst
     'm' followed by 'gdt@gdt,5<enter>' to open a new window that displays 5 gdt entries
     'c'     to free run
 #### to regain debug control:
-    goto the qemu monitor (the (qemu) prompt) and type 'stop', pgdb will reactivate
+Goto the qemu monitor (the (qemu) prompt) and type 'stop', pgdb will reactivate.
 
 You can quit without killing qemu with 'q', then restart pgdb and
 it will reload the current cpu state where you left off,
 or 'Q' to exit both and start over.
-
 
 ## Rebuild
 ```

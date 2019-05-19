@@ -5,7 +5,7 @@ $ cd <gitdir>/pgdb/examples/qemu/x86_64/oz-x86-64-asm-001
 $ qemu-system-x86_64 -boot a -fda oz_fd -monitor stdio -s -S
 ```
 (and in another terminal)
-````
+```
 $ cd <gitdir>pgdb
 $ python pgdb.py -nasmlst examples/qemu/x86_64/oz-x86-64-asm-001/oz_fd.lst
 ```

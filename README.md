@@ -84,7 +84,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
 
 
 ![ScreenShot](http://imgur.com/sq0o6tf)
-<img src="http://imgur.com/sq0o6tf" title="ScreenShot">
+<img src="https://user-images.githubusercontent.com/153577/57986990-648dfa80-7a41-11e9-82c8-c46da3d33490.png" title="ScreenShot">
 
 
 
