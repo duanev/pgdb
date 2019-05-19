@@ -15,4 +15,4 @@ test.bin: test.elf
 	$(CROSS_COMPILE)-objcopy -O binary test.elf test.bin
 
 clean:
-	-rm -f *.o *.lst *.map *.bin
+	-rm -f *.o *.lst *.map *.bin *.elf

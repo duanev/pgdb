@@ -1,0 +1,598 @@
+
+pcie.elf:     file format elf64-littleaarch64
+
+
+Disassembly of section code:
+
+0000000040080000 <crt>:
+
+.section .text
+
+    .global crt
+crt:
+    adrp    x0, _stack_start
+    40080000:	b0000020 	adrp	x0, 40085000 <_stack_start>
+    mov     sp, x0
+    40080004:	9100001f 	mov	sp, x0
+    //bl      con_init            // not needed for qemu
+    bl      main
+    40080008:	9400009f 	bl	40080284 <main>
+    ldr     x0, =eop_msg
+    4008000c:	58000560 	ldr	x0, 400800b8 <uart_addr+0x8>
+    bl      con_puts
+    40080010:	9400000d 	bl	40080044 <con_puts>
+    b       .                   // hang
+    40080014:	14000000 	b	40080014 <crt+0x14>
+
+0000000040080018 <con_init>:
+        cbnz    w3, 1b
+    .endm
+
+    .global con_init
+con_init:
+    ldr  x0, uart_addr
+    40080018:	580004c0 	ldr	x0, 400800b0 <uart_addr>
+    str  wzr, [x0, UART_CR]
+    4008001c:	b900301f 	str	wzr, [x0, #48]
+    str  wzr, [x0, UART_ECR]
+    40080020:	b900041f 	str	wzr, [x0, #4]
+    str  wzr, [x0, UART_DR]
+    40080024:	b900001f 	str	wzr, [x0]
+    mov  w1,  BAUD_I
+    40080028:	52800041 	mov	w1, #0x2                   	// #2
+    str  w1,  [x0, UART_IB]
+    4008002c:	b9002401 	str	w1, [x0, #36]
+    mov  w1,  BAUD_F
+    40080030:	52800161 	mov	w1, #0xb                   	// #11
+    str  w1,  [x0, UART_FB]
+    40080034:	b9002801 	str	w1, [x0, #40]
+    mov  w1,  0x301
+    40080038:	52806021 	mov	w1, #0x301                 	// #769
+    str  w1,  [x0, UART_CR]
+    4008003c:	b9003001 	str	w1, [x0, #48]
+    ret
+    40080040:	d65f03c0 	ret
+
+0000000040080044 <con_puts>:
+
+    .global con_puts
+con_puts:
+    ldr  x1, uart_addr
+    40080044:	58000361 	ldr	x1, 400800b0 <uart_addr>
+
+0000000040080048 <loop>:
+loop:
+    wait_for_tx_ready
+    40080048:	b9401823 	ldr	w3, [x1, #24]
+    4008004c:	52800504 	mov	w4, #0x28                  	// #40
+    40080050:	0a040063 	and	w3, w3, w4
+    40080054:	35ffffa3 	cbnz	w3, 40080048 <loop>
+    ldrb w2, [x0]
+    40080058:	39400002 	ldrb	w2, [x0]
+    cmp  x2, #0
+    4008005c:	f100005f 	cmp	x2, #0x0
+    b.eq done
+    40080060:	54000180 	b.eq	40080090 <done>  // b.none
+    cmp  w2, ASCII_NL
+    40080064:	7100285f 	cmp	w2, #0xa
+    b.ne 2f
+    40080068:	540000e1 	b.ne	40080084 <loop+0x3c>  // b.any
+    mov  w3, ASCII_CR
+    4008006c:	528001a3 	mov	w3, #0xd                   	// #13
+    str  x3, [x1]
+    40080070:	f9000023 	str	x3, [x1]
+    wait_for_tx_ready
+    40080074:	b9401823 	ldr	w3, [x1, #24]
+    40080078:	52800504 	mov	w4, #0x28                  	// #40
+    4008007c:	0a040063 	and	w3, w3, w4
+    40080080:	35ffffa3 	cbnz	w3, 40080074 <loop+0x2c>
+2:
+    str  x2, [x1]
+    40080084:	f9000022 	str	x2, [x1]
+    add  x0, x0, #1
+    40080088:	91000400 	add	x0, x0, #0x1
+    b    loop
+    4008008c:	17ffffef 	b	40080048 <loop>
+
+0000000040080090 <done>:
+done:
+    ret
+    40080090:	d65f03c0 	ret
+
+0000000040080094 <con_getc>:
+
+    .global con_getc
+con_getc:
+    ldr  x1, uart_addr
+    40080094:	580000e1 	ldr	x1, 400800b0 <uart_addr>
+1:
+    ldr  w2, [x1, UART_FR]
+    40080098:	b9401822 	ldr	w2, [x1, #24]
+    and  w2, w2, #FR_RXFE
+    4008009c:	121c0042 	and	w2, w2, #0x10
+    cbnz w2, 1b
+    400800a0:	35ffffc2 	cbnz	w2, 40080098 <con_getc+0x4>
+    ldr  w0, [x1, UART_DR]
+    400800a4:	b9400020 	ldr	w0, [x1]
+    ret
+    400800a8:	d65f03c0 	ret
+    400800ac:	d503201f 	nop
+
+00000000400800b0 <uart_addr>:
+    400800b0:	09000000 	.word	0x09000000
+    400800b4:	00000000 	.inst	0x00000000 ; undefined
+    400800b8:	40084000 	.word	0x40084000
+    400800bc:	00000000 	.word	0x00000000
+
+00000000400800c0 <pci_scan>:
+}
+
+
+int
+pci_scan(void)
+{
+    400800c0:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+    400800c4:	910003fd 	mov	x29, sp
+    400800c8:	a90153f3 	stp	x19, x20, [sp, #16]
+    400800cc:	a9025bf5 	stp	x21, x22, [sp, #32]
+    400800d0:	a90363f7 	stp	x23, x24, [sp, #48]
+    400800d4:	f90023f9 	str	x25, [sp, #64]
+    struct pci_confspace * conf;
+
+    for (u64 i = PCIE_CONF_ADDR; i < PCIE_CONF_END; i += PCIE_CONF_SIZE) {
+    400800d8:	d2a20014 	mov	x20, #0x10000000            	// #268435456
+    400800dc:	f2c00814 	movk	x20, #0x40, lsl #32
+        conf = (void *)i;
+
+        if (conf->vendorId  &&  conf->vendorId != 0xffff) {
+            printf("  %x %x %x\n", i, conf->vendorId, conf->deviceId);
+    400800e0:	90000017 	adrp	x23, 40080000 <crt>
+    400800e4:	9116c2f7 	add	x23, x23, #0x5b0
+            if (conf->capPtr) {
+                struct pci_capability * cap = (void *)i + conf->capPtr;
+                for (; cap->next; cap = (void *)i + cap->next) {
+                    printf("        %x cap", cap);
+                    if (cap->expCap)  printf(" exp(%x)", cap->expCap);
+                    if (cap->devCap)  printf(" dev(%x,%x)", cap->devCap, cap->devStatus);
+    400800e8:	90000018 	adrp	x24, 40080000 <crt>
+    400800ec:	91184318 	add	x24, x24, #0x610
+    400800f0:	1400001d 	b	40080164 <pci_scan+0xa4>
+                    printf("    %x bar%d class(%x,%x) prg(%x) size(%x)\n", conf->bar + j, j,
+    400800f4:	cb0603e6 	neg	x6, x6
+    400800f8:	394026a5 	ldrb	w5, [x21, #9]
+    400800fc:	39402aa4 	ldrb	w4, [x21, #10]
+    40080100:	39402ea3 	ldrb	w3, [x21, #11]
+    40080104:	2a1303e2 	mov	w2, w19
+    40080108:	8b33cb21 	add	x1, x25, w19, sxtw #2
+    4008010c:	aa1603e0 	mov	x0, x22
+    40080110:	9400006d 	bl	400802c4 <printf>
+            for (int j = 0; j < 6; j++) {
+    40080114:	11000673 	add	w19, w19, #0x1
+    40080118:	7100167f 	cmp	w19, #0x5
+    4008011c:	5400016c 	b.gt	40080148 <pci_scan+0x88>
+                if (conf->bar[j]) {
+    40080120:	8b33caa1 	add	x1, x21, w19, sxtw #2
+    40080124:	b9401020 	ldr	w0, [x1, #16]
+    40080128:	34ffff60 	cbz	w0, 40080114 <pci_scan+0x54>
+                    u64 siz = 0xffffffff00000000ull | (conf->bar[j] & 0xfffffff0);
+    4008012c:	927c6c06 	and	x6, x0, #0xfffffff0
+    40080130:	b2607cc6 	orr	x6, x6, #0xffffffff00000000
+                    if (conf->bar[j] & PCI_CONF_BAR_64BIT)
+    40080134:	3617fe00 	tbz	w0, #2, 400800f4 <pci_scan+0x34>
+                        siz |= ((u64)conf->bar[++j] << 32);
+    40080138:	11000673 	add	w19, w19, #0x1
+    4008013c:	b9401420 	ldr	w0, [x1, #20]
+    40080140:	aa0080c6 	orr	x6, x6, x0, lsl #32
+    40080144:	17ffffec 	b	400800f4 <pci_scan+0x34>
+            if (conf->capPtr) {
+    40080148:	3940d2b3 	ldrb	w19, [x21, #52]
+    4008014c:	350003b3 	cbnz	w19, 400801c0 <pci_scan+0x100>
+    for (u64 i = PCIE_CONF_ADDR; i < PCIE_CONF_END; i += PCIE_CONF_SIZE) {
+    40080150:	91402294 	add	x20, x20, #0x8, lsl #12
+    40080154:	d2a40000 	mov	x0, #0x20000000            	// #536870912
+    40080158:	f2c00800 	movk	x0, #0x40, lsl #32
+    4008015c:	eb00029f 	cmp	x20, x0
+    40080160:	54000860 	b.eq	4008026c <pci_scan+0x1ac>  // b.none
+        conf = (void *)i;
+    40080164:	aa1403f5 	mov	x21, x20
+        if (conf->vendorId  &&  conf->vendorId != 0xffff) {
+    40080168:	79400282 	ldrh	w2, [x20]
+    4008016c:	51000441 	sub	w1, w2, #0x1
+    40080170:	529fffa0 	mov	w0, #0xfffd                	// #65533
+    40080174:	6b21201f 	cmp	w0, w1, uxth
+    40080178:	54fffec3 	b.cc	40080150 <pci_scan+0x90>  // b.lo, b.ul, b.last
+            printf("  %x %x %x\n", i, conf->vendorId, conf->deviceId);
+    4008017c:	79400683 	ldrh	w3, [x20, #2]
+    40080180:	aa1403e1 	mov	x1, x20
+    40080184:	aa1703e0 	mov	x0, x23
+    40080188:	9400004f 	bl	400802c4 <printf>
+                conf->bar[j] = 0xffffffff;
+    4008018c:	12800000 	mov	w0, #0xffffffff            	// #-1
+    40080190:	b9001280 	str	w0, [x20, #16]
+    40080194:	b9001680 	str	w0, [x20, #20]
+    40080198:	b9001a80 	str	w0, [x20, #24]
+    4008019c:	b9001e80 	str	w0, [x20, #28]
+    400801a0:	b9002280 	str	w0, [x20, #32]
+    400801a4:	b9002680 	str	w0, [x20, #36]
+            dc_invalidate((u64)conf->bar);
+    400801a8:	91004299 	add	x25, x20, #0x10
+    __asm__ __volatile__("dc civac, %0\n\t" : : "r" (va) : "memory");
+    400801ac:	d50b7e39 	dc	civac, x25
+            for (int j = 0; j < 6; j++) {
+    400801b0:	52800013 	mov	w19, #0x0                   	// #0
+                    printf("    %x bar%d class(%x,%x) prg(%x) size(%x)\n", conf->bar + j, j,
+    400801b4:	90000016 	adrp	x22, 40080000 <crt>
+    400801b8:	911702d6 	add	x22, x22, #0x5c0
+    400801bc:	17ffffd9 	b	40080120 <pci_scan+0x60>
+                struct pci_capability * cap = (void *)i + conf->capPtr;
+    400801c0:	8b330293 	add	x19, x20, w19, uxtb
+                for (; cap->next; cap = (void *)i + cap->next) {
+    400801c4:	39400660 	ldrb	w0, [x19, #1]
+    400801c8:	34fffc40 	cbz	w0, 40080150 <pci_scan+0x90>
+                    printf("        %x cap", cap);
+    400801cc:	90000015 	adrp	x21, 40080000 <crt>
+    400801d0:	9117c2b5 	add	x21, x21, #0x5f0
+                    if (cap->expCap)  printf(" exp(%x)", cap->expCap);
+    400801d4:	90000016 	adrp	x22, 40080000 <crt>
+    400801d8:	911802d6 	add	x22, x22, #0x600
+    400801dc:	14000018 	b	4008023c <pci_scan+0x17c>
+    400801e0:	aa1603e0 	mov	x0, x22
+    400801e4:	94000038 	bl	400802c4 <printf>
+    400801e8:	1400001a 	b	40080250 <pci_scan+0x190>
+                    if (cap->devCap)  printf(" dev(%x,%x)", cap->devCap, cap->devStatus);
+    400801ec:	79401662 	ldrh	w2, [x19, #10]
+    400801f0:	aa1803e0 	mov	x0, x24
+    400801f4:	94000034 	bl	400802c4 <printf>
+    400801f8:	14000018 	b	40080258 <pci_scan+0x198>
+                    if (cap->linkCap) printf(" link(%x,%x)", cap->linkCap, cap->linkStatus);
+    400801fc:	79402662 	ldrh	w2, [x19, #18]
+    40080200:	90000000 	adrp	x0, 40080000 <crt>
+    40080204:	91188000 	add	x0, x0, #0x620
+    40080208:	9400002f 	bl	400802c4 <printf>
+    4008020c:	14000015 	b	40080260 <pci_scan+0x1a0>
+                    if (cap->slotCap) printf(" slot(%x,%x)", cap->slotCap, cap->slotStatus);
+    40080210:	79403662 	ldrh	w2, [x19, #26]
+    40080214:	90000000 	adrp	x0, 40080000 <crt>
+    40080218:	9118c000 	add	x0, x0, #0x630
+    4008021c:	9400002a 	bl	400802c4 <printf>
+                    con_puts("\n");         // gcc uses putchar for printf("\n")
+    40080220:	90000000 	adrp	x0, 40080000 <crt>
+    40080224:	91190000 	add	x0, x0, #0x640
+    40080228:	97ffff87 	bl	40080044 <con_puts>
+                for (; cap->next; cap = (void *)i + cap->next) {
+    4008022c:	39400673 	ldrb	w19, [x19, #1]
+    40080230:	8b140273 	add	x19, x19, x20
+    40080234:	39400660 	ldrb	w0, [x19, #1]
+    40080238:	34fff8c0 	cbz	w0, 40080150 <pci_scan+0x90>
+                    printf("        %x cap", cap);
+    4008023c:	aa1303e1 	mov	x1, x19
+    40080240:	aa1503e0 	mov	x0, x21
+    40080244:	94000020 	bl	400802c4 <printf>
+                    if (cap->expCap)  printf(" exp(%x)", cap->expCap);
+    40080248:	79400661 	ldrh	w1, [x19, #2]
+    4008024c:	35fffca1 	cbnz	w1, 400801e0 <pci_scan+0x120>
+                    if (cap->devCap)  printf(" dev(%x,%x)", cap->devCap, cap->devStatus);
+    40080250:	b9400661 	ldr	w1, [x19, #4]
+    40080254:	35fffcc1 	cbnz	w1, 400801ec <pci_scan+0x12c>
+                    if (cap->linkCap) printf(" link(%x,%x)", cap->linkCap, cap->linkStatus);
+    40080258:	b9400e61 	ldr	w1, [x19, #12]
+    4008025c:	35fffd01 	cbnz	w1, 400801fc <pci_scan+0x13c>
+                    if (cap->slotCap) printf(" slot(%x,%x)", cap->slotCap, cap->slotStatus);
+    40080260:	b9401661 	ldr	w1, [x19, #20]
+    40080264:	34fffde1 	cbz	w1, 40080220 <pci_scan+0x160>
+    40080268:	17ffffea 	b	40080210 <pci_scan+0x150>
+                }
+            }
+        }
+    }
+}
+    4008026c:	a94153f3 	ldp	x19, x20, [sp, #16]
+    40080270:	a9425bf5 	ldp	x21, x22, [sp, #32]
+    40080274:	a94363f7 	ldp	x23, x24, [sp, #48]
+    40080278:	f94023f9 	ldr	x25, [sp, #64]
+    4008027c:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    40080280:	d65f03c0 	ret
+
+0000000040080284 <main>:
+
+
+void
+main(int ac, char * av[])
+{
+    40080284:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+    40080288:	910003fd 	mov	x29, sp
+    4008028c:	a90153f3 	stp	x19, x20, [sp, #16]
+    char c;
+    do {
+        pci_scan();
+        c = con_getc();
+        printf("-------- %c\n", c);
+    40080290:	90000014 	adrp	x20, 40080000 <crt>
+    40080294:	91192294 	add	x20, x20, #0x648
+        pci_scan();
+    40080298:	97ffff8a 	bl	400800c0 <pci_scan>
+        c = con_getc();
+    4008029c:	97ffff7e 	bl	40080094 <con_getc>
+    400802a0:	12001c13 	and	w19, w0, #0xff
+        printf("-------- %c\n", c);
+    400802a4:	2a1303e1 	mov	w1, w19
+    400802a8:	aa1403e0 	mov	x0, x20
+    400802ac:	94000006 	bl	400802c4 <printf>
+    } while (c != 'q');
+    400802b0:	7101c67f 	cmp	w19, #0x71
+    400802b4:	54ffff21 	b.ne	40080298 <main+0x14>  // b.any
+}
+    400802b8:	a94153f3 	ldp	x19, x20, [sp, #16]
+    400802bc:	a8c27bfd 	ldp	x29, x30, [sp], #32
+    400802c0:	d65f03c0 	ret
+
+00000000400802c4 <printf>:
+
+static const char xdigits[16] = { "0123456789abcdef" };
+
+int
+printf(const char * fmt, ...)
+{
+    400802c4:	a9b77bfd 	stp	x29, x30, [sp, #-144]!
+    400802c8:	910003fd 	mov	x29, sp
+    400802cc:	f9002fe1 	str	x1, [sp, #88]
+    400802d0:	f90033e2 	str	x2, [sp, #96]
+    400802d4:	f90037e3 	str	x3, [sp, #104]
+    400802d8:	f9003be4 	str	x4, [sp, #112]
+    400802dc:	f9003fe5 	str	x5, [sp, #120]
+    400802e0:	f90043e6 	str	x6, [sp, #128]
+    400802e4:	f90047e7 	str	x7, [sp, #136]
+    static char buf[1024];
+    char nbuf[32];
+    int rc;
+    va_list ap;
+    va_start(ap, fmt);
+    400802e8:	910243e1 	add	x1, sp, #0x90
+    400802ec:	f9000be1 	str	x1, [sp, #16]
+    400802f0:	f9000fe1 	str	x1, [sp, #24]
+    400802f4:	910143e1 	add	x1, sp, #0x50
+    400802f8:	f90013e1 	str	x1, [sp, #32]
+    400802fc:	128006e1 	mov	w1, #0xffffffc8            	// #-56
+    40080300:	b9002be1 	str	w1, [sp, #40]
+    40080304:	b9002fff 	str	wzr, [sp, #44]
+
+    char * q = buf;
+    for (const char * p = fmt; *p; p++) {
+    40080308:	39400002 	ldrb	w2, [x0]
+    4008030c:	340013e2 	cbz	w2, 40080588 <printf+0x2c4>
+                while (*s)  *q++ = *s++;
+                break;
+            case 'x':
+                *q++ = '0';
+                *q++ = 'x';
+                u = va_arg(ap, unsigned long);
+    40080310:	f9400feb 	ldr	x11, [sp, #24]
+    char * q = buf;
+    40080314:	90000021 	adrp	x1, 40084000 <eop_msg>
+    40080318:	91006021 	add	x1, x1, #0x18
+                    *s++ = '0' + u % 10;
+    4008031c:	b202e7e8 	mov	x8, #0xcccccccccccccccc    	// #-3689348814741910324
+    40080320:	f29999a8 	movk	x8, #0xcccd
+                while (s > nbuf)  *q++ = *--s;
+    40080324:	9100c3e6 	add	x6, sp, #0x30
+                if (s == 0) s = "(null)";
+    40080328:	9000000c 	adrp	x12, 40080000 <crt>
+                while (*s)  *q++ = *s++;
+    4008032c:	5280050d 	mov	w13, #0x28                  	// #40
+                *q++ = '0';
+    40080330:	5280060a 	mov	w10, #0x30                  	// #48
+                *q++ = 'x';
+    40080334:	52800f09 	mov	w9, #0x78                  	// #120
+                s = nbuf;
+                do {
+                    *s++ = xdigits[u % 16];
+    40080338:	90000007 	adrp	x7, 40080000 <crt>
+    4008033c:	911bc0e7 	add	x7, x7, #0x6f0
+    40080340:	14000079 	b	40080524 <printf+0x260>
+            switch (*++p) {
+    40080344:	71018c1f 	cmp	w0, #0x63
+    40080348:	54000e81 	b.ne	40080518 <printf+0x254>  // b.any
+                u = va_arg(ap, int);
+    4008034c:	b9402be2 	ldr	w2, [sp, #40]
+    40080350:	f9400be0 	ldr	x0, [sp, #16]
+    40080354:	37f800e2 	tbnz	w2, #31, 40080370 <printf+0xac>
+    40080358:	91002c02 	add	x2, x0, #0xb
+    4008035c:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080360:	f9000be2 	str	x2, [sp, #16]
+    40080364:	b9800000 	ldrsw	x0, [x0]
+                *q++ = u;
+    40080368:	38001420 	strb	w0, [x1], #1
+                break;
+    4008036c:	1400006b 	b	40080518 <printf+0x254>
+                u = va_arg(ap, int);
+    40080370:	11002043 	add	w3, w2, #0x8
+    40080374:	b9002be3 	str	w3, [sp, #40]
+    40080378:	7100007f 	cmp	w3, #0x0
+    4008037c:	540000ad 	b.le	40080390 <printf+0xcc>
+    40080380:	91002c02 	add	x2, x0, #0xb
+    40080384:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080388:	f9000be2 	str	x2, [sp, #16]
+    4008038c:	17fffff6 	b	40080364 <printf+0xa0>
+    40080390:	8b22c160 	add	x0, x11, w2, sxtw
+    40080394:	17fffff4 	b	40080364 <printf+0xa0>
+                u = va_arg(ap, int);
+    40080398:	b9402be2 	ldr	w2, [sp, #40]
+    4008039c:	f9400be0 	ldr	x0, [sp, #16]
+    400803a0:	37f800e2 	tbnz	w2, #31, 400803bc <printf+0xf8>
+    400803a4:	91002c02 	add	x2, x0, #0xb
+    400803a8:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    400803ac:	f9000be2 	str	x2, [sp, #16]
+    400803b0:	b9800003 	ldrsw	x3, [x0]
+                s = nbuf;
+    400803b4:	9100c3e5 	add	x5, sp, #0x30
+    400803b8:	1400000c 	b	400803e8 <printf+0x124>
+                u = va_arg(ap, int);
+    400803bc:	11002043 	add	w3, w2, #0x8
+    400803c0:	b9002be3 	str	w3, [sp, #40]
+    400803c4:	7100007f 	cmp	w3, #0x0
+    400803c8:	540000ad 	b.le	400803dc <printf+0x118>
+    400803cc:	91002c02 	add	x2, x0, #0xb
+    400803d0:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    400803d4:	f9000be2 	str	x2, [sp, #16]
+    400803d8:	17fffff6 	b	400803b0 <printf+0xec>
+    400803dc:	8b22c160 	add	x0, x11, w2, sxtw
+    400803e0:	17fffff4 	b	400803b0 <printf+0xec>
+                    u /= 10;
+    400803e4:	aa0203e3 	mov	x3, x2
+                    *s++ = '0' + u % 10;
+    400803e8:	9bc87c62 	umulh	x2, x3, x8
+    400803ec:	d343fc42 	lsr	x2, x2, #3
+    400803f0:	8b020840 	add	x0, x2, x2, lsl #2
+    400803f4:	cb000460 	sub	x0, x3, x0, lsl #1
+    400803f8:	1100c000 	add	w0, w0, #0x30
+    400803fc:	380014a0 	strb	w0, [x5], #1
+                } while (u);
+    40080400:	f100247f 	cmp	x3, #0x9
+    40080404:	54ffff08 	b.hi	400803e4 <printf+0x120>  // b.pmore
+                while (s > nbuf)  *q++ = *--s;
+    40080408:	eb0600bf 	cmp	x5, x6
+    4008040c:	54000869 	b.ls	40080518 <printf+0x254>  // b.plast
+                    *s++ = '0' + u % 10;
+    40080410:	aa0503e0 	mov	x0, x5
+                while (s > nbuf)  *q++ = *--s;
+    40080414:	aa0103e2 	mov	x2, x1
+    40080418:	385ffc03 	ldrb	w3, [x0, #-1]!
+    4008041c:	38001443 	strb	w3, [x2], #1
+    40080420:	eb06001f 	cmp	x0, x6
+    40080424:	54ffffa1 	b.ne	40080418 <printf+0x154>  // b.any
+    40080428:	cb0600a5 	sub	x5, x5, x6
+    4008042c:	8b050021 	add	x1, x1, x5
+    40080430:	1400003a 	b	40080518 <printf+0x254>
+                s = va_arg(ap, char *);
+    40080434:	b9402be2 	ldr	w2, [sp, #40]
+    40080438:	f9400be0 	ldr	x0, [sp, #16]
+    4008043c:	37f80182 	tbnz	w2, #31, 4008046c <printf+0x1a8>
+    40080440:	91003c02 	add	x2, x0, #0xf
+    40080444:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080448:	f9000be2 	str	x2, [sp, #16]
+    4008044c:	f9400002 	ldr	x2, [x0]
+                if (s == 0) s = "(null)";
+    40080450:	b4000222 	cbz	x2, 40080494 <printf+0x1d0>
+                while (*s)  *q++ = *s++;
+    40080454:	39400040 	ldrb	w0, [x2]
+    40080458:	34000600 	cbz	w0, 40080518 <printf+0x254>
+    4008045c:	38001420 	strb	w0, [x1], #1
+    40080460:	38401c40 	ldrb	w0, [x2, #1]!
+    40080464:	35ffffc0 	cbnz	w0, 4008045c <printf+0x198>
+    40080468:	1400002c 	b	40080518 <printf+0x254>
+                s = va_arg(ap, char *);
+    4008046c:	11002043 	add	w3, w2, #0x8
+    40080470:	b9002be3 	str	w3, [sp, #40]
+    40080474:	7100007f 	cmp	w3, #0x0
+    40080478:	540000ad 	b.le	4008048c <printf+0x1c8>
+    4008047c:	91003c02 	add	x2, x0, #0xf
+    40080480:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080484:	f9000be2 	str	x2, [sp, #16]
+    40080488:	17fffff1 	b	4008044c <printf+0x188>
+    4008048c:	8b22c160 	add	x0, x11, w2, sxtw
+    40080490:	17ffffef 	b	4008044c <printf+0x188>
+                if (s == 0) s = "(null)";
+    40080494:	91196182 	add	x2, x12, #0x658
+                while (*s)  *q++ = *s++;
+    40080498:	2a0d03e0 	mov	w0, w13
+    4008049c:	17fffff0 	b	4008045c <printf+0x198>
+                u = va_arg(ap, unsigned long);
+    400804a0:	11002022 	add	w2, w1, #0x8
+    400804a4:	b9002be2 	str	w2, [sp, #40]
+    400804a8:	7100005f 	cmp	w2, #0x0
+    400804ac:	540000ad 	b.le	400804c0 <printf+0x1fc>
+    400804b0:	91003c01 	add	x1, x0, #0xf
+    400804b4:	927df021 	and	x1, x1, #0xfffffffffffffff8
+    400804b8:	f9000be1 	str	x1, [sp, #16]
+    400804bc:	1400002e 	b	40080574 <printf+0x2b0>
+    400804c0:	8b21c160 	add	x0, x11, w1, sxtw
+    400804c4:	1400002c 	b	40080574 <printf+0x2b0>
+                    u /= 16;
+    400804c8:	aa0203e0 	mov	x0, x2
+                    *s++ = xdigits[u % 16];
+    400804cc:	92400c02 	and	x2, x0, #0xf
+    400804d0:	386268e2 	ldrb	w2, [x7, x2]
+    400804d4:	38001422 	strb	w2, [x1], #1
+                    u /= 16;
+    400804d8:	d344fc02 	lsr	x2, x0, #4
+                } while (u);
+    400804dc:	f1003c1f 	cmp	x0, #0xf
+    400804e0:	54ffff48 	b.hi	400804c8 <printf+0x204>  // b.pmore
+                while (s > nbuf)  *q++ = *--s;
+    400804e4:	eb06003f 	cmp	x1, x6
+    400804e8:	540004c9 	b.ls	40080580 <printf+0x2bc>  // b.plast
+                    *s++ = xdigits[u % 16];
+    400804ec:	aa0103e0 	mov	x0, x1
+                *q++ = 'x';
+    400804f0:	aa0503e2 	mov	x2, x5
+                while (s > nbuf)  *q++ = *--s;
+    400804f4:	385ffc03 	ldrb	w3, [x0, #-1]!
+    400804f8:	38001443 	strb	w3, [x2], #1
+    400804fc:	eb06001f 	cmp	x0, x6
+    40080500:	54ffffa1 	b.ne	400804f4 <printf+0x230>  // b.any
+    40080504:	cb060021 	sub	x1, x1, x6
+    40080508:	8b0100a1 	add	x1, x5, x1
+    4008050c:	14000003 	b	40080518 <printf+0x254>
+            default:
+                /* fall-through */
+                break;
+            }
+        } else {
+            *q++ = *p;
+    40080510:	38001422 	strb	w2, [x1], #1
+    40080514:	aa0003e4 	mov	x4, x0
+    for (const char * p = fmt; *p; p++) {
+    40080518:	91000480 	add	x0, x4, #0x1
+    4008051c:	39400482 	ldrb	w2, [x4, #1]
+    40080520:	34000382 	cbz	w2, 40080590 <printf+0x2cc>
+        if (*p == '%') {
+    40080524:	7100945f 	cmp	w2, #0x25
+    40080528:	54ffff41 	b.ne	40080510 <printf+0x24c>  // b.any
+            switch (*++p) {
+    4008052c:	91000404 	add	x4, x0, #0x1
+    40080530:	39400400 	ldrb	w0, [x0, #1]
+    40080534:	7101901f 	cmp	w0, #0x64
+    40080538:	54fff300 	b.eq	40080398 <printf+0xd4>  // b.none
+    4008053c:	54fff049 	b.ls	40080344 <printf+0x80>  // b.plast
+    40080540:	7101cc1f 	cmp	w0, #0x73
+    40080544:	54fff780 	b.eq	40080434 <printf+0x170>  // b.none
+    40080548:	7101e01f 	cmp	w0, #0x78
+    4008054c:	54fffe61 	b.ne	40080518 <printf+0x254>  // b.any
+                *q++ = '0';
+    40080550:	aa0103e5 	mov	x5, x1
+    40080554:	380024aa 	strb	w10, [x5], #2
+                *q++ = 'x';
+    40080558:	39000429 	strb	w9, [x1, #1]
+                u = va_arg(ap, unsigned long);
+    4008055c:	b9402be1 	ldr	w1, [sp, #40]
+    40080560:	f9400be0 	ldr	x0, [sp, #16]
+    40080564:	37fff9e1 	tbnz	w1, #31, 400804a0 <printf+0x1dc>
+    40080568:	91003c01 	add	x1, x0, #0xf
+    4008056c:	927df021 	and	x1, x1, #0xfffffffffffffff8
+    40080570:	f9000be1 	str	x1, [sp, #16]
+    40080574:	f9400000 	ldr	x0, [x0]
+                s = nbuf;
+    40080578:	9100c3e1 	add	x1, sp, #0x30
+    4008057c:	17ffffd4 	b	400804cc <printf+0x208>
+                *q++ = 'x';
+    40080580:	aa0503e1 	mov	x1, x5
+    40080584:	17ffffe5 	b	40080518 <printf+0x254>
+    char * q = buf;
+    40080588:	90000021 	adrp	x1, 40084000 <eop_msg>
+    4008058c:	91006021 	add	x1, x1, #0x18
+        }
+    }
+    *q = 0;
+    40080590:	3900003f 	strb	wzr, [x1]
+
+    con_puts(buf);
+    40080594:	90000020 	adrp	x0, 40084000 <eop_msg>
+    40080598:	91006000 	add	x0, x0, #0x18
+    4008059c:	97fffeaa 	bl	40080044 <con_puts>
+
+    va_end(ap);
+    return rc;
+}
+    400805a0:	52800000 	mov	w0, #0x0                   	// #0
+    400805a4:	a8c97bfd 	ldp	x29, x30, [sp], #144
+    400805a8:	d65f03c0 	ret

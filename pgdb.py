@@ -2,7 +2,7 @@
 # vi: set tabstop=8 expandtab softtabstop=4 shiftwidth=4
 
 """
-Copyright (c) 2015,2016,2017 Duane Voth
+Copyright (c) 2015-2019 Duane Voth
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,9 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # Python GDB RDP client (replaces gdb for QEMU tcp debug)
 #
 # why:
-#   - gdb won't ever understand non-gas assemblers (like NASM)
+#   - gdb probably won't ever understand non-gas assemblers (like NASM)
 #   - gdb still doesn't deal with multiple cores (nicely? at all?)
-#   - gdb is cumbersome, its time to raise the bar.
+#   - gdb is seriously cumbersome, its high time we raised the bar.
 #
 # resources:
 #   https://sourceware.org/gdb/onlinedocs/gdb/Remote-Protocol.html
@@ -50,67 +50,102 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   (args are read left to right so shell wildcards work)
 #   $ python pgdb_x86.py -nasmlst src/{a,b,c}.lst -gccmap mapfiles/*.map
 #
+# ncurses issues:
+#   - TERM=rxvt-unicode-265color is the default for urxvt but the term info
+#       definition seems to be in many ways wrong - in pgdb the key codes
+#       are totally broken.
+#       a workaround is coded in below (look for os.environ['TERM'] = 'rxvt')
+#       or alternatively run pgdb as $ TERM=rxvt python pgdb_x86.py ...
+#
+# how pgdb works:
+#   pgdb is an event driven ncurses interface to any gdb 'backend' tucked
+#   into a debugger or emulator.  qemu (started above) with -s -S halts
+#   emulation before the first instruction is executed and allows a debugger
+#   to be attached (that's pgdb).  when pgdb is loaded it looks for the
+#   gdb socket and initiates the RDB protocol to find out what cpu arch
+#   is running, the contents of all the registers, and then if a listing
+#   file, or map file with references to listings, has been mentioned on
+#   the pgdb command line, locates where the current program counter is
+#   within the listings.
+#
 # implementation notes:
-#   - PGDB is a purely event driven app.  Keyboard events and gdb-rdp-tcp
+#   - apologies: this code is rather dense.  the good news is however
+#       that it is actually pretty easy to debug: because pgdb runs
+#       independently of the gdb debugger/emulator, so it can be exited
+#       and restarted without disturbing the debugger/emulator.  thus, if
+#       pgdb just got it's panties in a wad, you can exit pgdb with 'q'
+#       (if it hasn't already crashed), hunt around and add Log.write()
+#       statements to the .py, and then rerun the pgdb command line to
+#       see if you found the problem.
+#   - HOWEVER, if pgdb crashes after ncurses has been init'ed but before
+#       the Log window is up (typical for the convoluted load_gccmap_file
+#       function) you will want to enable 'logfile' below, let pgdb crash,
+#       and then study pgdb.DBG
+#   - i've saved some of my useful Log.write()s to help debug; search for
+#       'DEBUG' to find useful statements that if uncommented might help.
+#   - pgdb is a purely event driven app.  Keyboard events and gdb-rdp-tcp
 #       receive events drive ALL actions.
-#   - update_status('...', CPdbg) is a possible one-line debug mechanism,
-#       or use the Log.write('...\n', CPdbg)
+#   - update_status('...', CPdbg) is a possible one-line debug mechanism
+#       that writes to the top line of the screen, or use
+#       Log.write('...\n', CPdbg) for multi-line.
 #   - gdb rdp (remote debug protocol) thinks in 'threads' (based from 1)
 #       but pgdb thinks in 'cpus' (based from 0).
 #   - the words 'panel' and 'window' seem to be used interchangeably,
 #       but no, windows are 'seen' by the user, panels are the software
-#       objects that often result in windows ... yeah, it's fuzzy,
+#       objects that often result in a window.
 #   - specific architectures have different names for the instruction
-#       pointer - pgdb simply labels them all as 'ip'.
+#       pointer - but pgdb simply labels them all as 'ip'.  sorry.
 #   - when using a lot of cpu cores, it can take a while to refetch all
-#       the regs after a single-step or emulator stop, some display events
-#       don't fire until all the data has been retrieved (be patient).
+#       the regs via rdp after each single-step or emulator stop, and many
+#       display events don't fire until all the data has been retrieved.
+#       if you are running with more than 8 cores, be patient!
 #   - python exceptions go to the log window once the main loop runs.
-#       you can scroll back and forward with ctrl-pgup and ctrl-pgdown.
+#       you can scroll back and forward with ctrl-pgup and ctrl-pgdown ...
 #   - my approach to tracking program flow (by doing text searches through
 #       .lst and .map files) is *not* deterministic and will undoubtedly
 #       give incorrect results in certain complex situations with overlapping
-#       logical address spaces.  and there is some squirrely code to support
+#       logical address spaces.  and there is some squirrely code to mitigate
 #       this of which I'm not entirely proud.  but this approach allows us
 #       to more easily trace rom-able code where we may only have a binary
 #       image, a lst file, and maybe a map file.  I will argue against trying
 #       to make pgdb handle elf executables and object files if it means
-#       breaking the text based current approach. (but a "different" version
-#       of pgdb would be fine as a complete gdb replacement)
+#       breaking the current *text* lst/map file based approach. (but feel
+#       free to fork a "different" version ... ;)
 #   - perhaps why others have not tried this follow-the-listing-file approach
-#       before is that the gcc tool chain (using objdump) does not seem to
-#       have well defined listing file formats.  I wrote this initially for
-#       NASM et. al. but of course the 800 pound gorilla want's to play too -
-#       so objdump support has been hacked in.  at the moment the problem
-#       is that hand coded 'as' source generates listing files (via objdump)
+#       is that the gcc tool chain (using objdump) does not seem to have well
+#       defined listing file formats.  I wrote this initially for NASM et. al.
+#       but of course the 800 pound gcc toolchain want's to play too - so I've
+#       hacked in support for gcc's objdump.  at the moment the problem is
+#       that hand coded 'as' source generates listing files (via objdump)
 #       where source labels do not have a corresponding symbol in the symbol
-#       table (you have to use .global in as to make a label a symbol) and
-#       without a symbol (that gets fixed up by the linker) we can't match
-#       the current ip with the source line that generated the next
-#       instruction.  hence ambiguity ...
+#       table (ie. you have to manually add .global in the .s to make a label
+#       a symbol) and without a symbol (that gets fixed up by the linker) we
+#       can't match the current ip with the source line that generated the
+#       next instruction.
 #   - "pinning" the source window is one workaround for overlapping address
 #       spaces.  Pressing a number key twice pins a source window; pressing
-#       any other number key unpins the source window, as does a clearly
-#       better choice, which causes an automatic switch.
+#       any other number key unpins the current source window and switches to
+#       the other.  sometimes a very clear better choice presents itself,
+#       which will cause an automatic switch.
 #   - when generating .lst files using gcc and objdump, be sure to use:
 #           $ gcc -O0 ...
 #   - segment support may be questionable, but for non-segmented architectures,
-#       defining a segment to be like an overlay works fine, where each
-#       overlay gets a unique number.  need to support segments because
-#       some architectures need them ...
-#   - qemu-system-arm -kernel for some reason reports the pc values to be
-#       *relative* to the start address at 0x10000.  this messes everything up.
-#       for now, a *negative* segment offset brings the symbols into line,
-#       but yeah it's a hack ...
+#       defining a segment to act like an overlay works fine; where each
+#       overlay gets a unique number.  segments need to be supported because
+#       some popular architectures have them ...
+#   - qemu-system-arm -kernel (v2.4ish) for some reason reports the pc values
+#       to be *relative* to the start address at 0x10000.  this messes
+#       everything up.  for now, a *negative* segment offset brings the
+#       symbols into line - yeah it's a hack ...
 #   - nasm happily allows you to put data in your .text segment.
 #       pgdb however keeps symbols found in the .text segment separate from
 #       symbols found in the .data segment.  text symbols work for breakpoint
 #       addresses, data symbols work for memory and watchpoint addresses.
 #       if at a mem address prompt you type gdt@mygdt and pgdb says 'error
 #       in [mygdt] at mygdt' then maybe you are missing a .data section.
-#   - bro, I just wanna read your code, why isn't this shit all in some README?
+#   - yo bro, why isn't this verbage all in some README?
 #       because my young padawan, the less your crap is spread out, the
-#       easier it is to clean up.
+#       easier it is to clean up.  (and the docs won't be so easily lost)
 #
 #   ---- architecture support modules: alter egos and modes ----
 #       pgdb can do something a bit unusual: it can *reload* the arch module
@@ -122,22 +157,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       procesor status word causes all the cores on the chip to change at
 #       once, then separate arch modules may be best approach with an alter
 #       ego switch (eg. load_arch_module()) on the fly when the flag changes.
+#       pretty sure I haven't thought it all out let alone tested it ...
 #
-#       confusing all this is how qemu is architected and it's slow cross
-#       platform transition to using xml files to describe cpu register sets.
-#       it would make sense for there to be one pgdb arch module for each
-#       qemu binary, but some binaries implement a subset of others
-#       (eg. i386 and x86_64) and we of course don't want to duplicate
-#       code.  it would make even more sense if qXfer:features:read
-#       could give us a unique arch string that we could simply map to a
-#       module name, but various qemu binaries don't support features:read
-#       yet. (and qemu has to deal with the multiple mode thing too - how is
-#       it going to telegraph that a new xml file needs to be retrieved?)
-#       right now, if features:read isn't supported, the only qemu signal
-#       that lets pgdb know what mode/architecture is being emulated is
-#       the length of the returned data for the rdp 'g' (get registers)
-#       command.  (we pray that this will continue to be unique for each
-#       arch/alterego/mode) and thus the current pgdb logic is:
+#       confusing all this is how qemu is gradually evolving to usefullness.
+#       with qemu v3.1.0, x86 regs are finally sent to us via xml, but there
+#       is still no indication when an x86 cpu switched from 32b to 64b or
+#       back.  there is probably some discussion among the devs about how
+#       to do this properly and efficiently; for example, it would be cool if
+#       qXfer:features:read could give us a unique arch string that we could
+#       simply map to a module name, but various qemu binaries don't support
+#       features:read yet. (and qemu has to deal with the multiple mode
+#       thing too - how is it going to telegraph that a new xml file needs
+#       to be retrieved?) right now, if features:read isn't supported, the
+#       only qemu signal that lets pgdb know what mode/architecture is being
+#       emulated is the LENGTH of the returned data for the rdp 'g' (get
+#       registers) command!  (we pray that this will continue to be unique
+#       for each arch/alterego/mode) and thus the current pgdb logic is:
 #           - if qXfer:features:read, pick the arch module from the xml name
 #             else use the user defined default (or command line -arch)
 #           - the emulated processor mode is based on the returned
@@ -162,18 +197,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       get confused or lost.  what is needed is a memory 'cache'.  all
 #       memory windows should pool their requests and share their answers
 #       so overlapping regions don't cause multiple rdp fetches and one
-#       answer can update all interested memory windows.  but it will be a
-#       significant project ...
+#       answer can update all interested memory windows.  but this will be
+#       a significant enhancement ...
 #   - fetch complex data structures via rdp (ie. gdt/ldt/idt with multiple
 #       chained lookups).  once the above is fixed, it would be nice to
 #       pull segment the selectors for each segment register in use by a cpu.
 #   - if terminal resize shrinks display and cuts off windows - they can
 #       no longer be moved.  resize enlarge however won't unfreeze moves!
 #       (probably a curses bug - can we watch for resize events and relocate
-#       windows so they don't get cut off?)  for now, don't shrink the
-#       terminal window while pgdb is running.
-#   - support for other architectures: mips, ppc, s390, etc.  arm has
-#       been started - remember, pgdb is primarily a gdb rdp front end ...
+#       windows so they don't get cut off?)  for now, us users shouldn't
+#       shrink the terminal window while pgdb is running ...
+#   - support for other architectures: mips, ppc, s390, etc.  arm and aarch64
+#       are mostly solid - remember, pgdb is primarily a gdb rdp front end ...
 #   - finish abstracting out all the x86_32 specific code placing it in
 #       pgdb_x86_32.py  (there is no need for classes here, python modules
 #       create a perfectly functional name space boundary which is all we need)
@@ -181,16 +216,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       names should match qemu build names (i386 and 64 need to be combined
 #       if qemu-x86_64 can switch midstream to 64bit - but I don't know yet
 #       when this happens - gdb has a 'set architecture i386:x86-64' command
-#       but it doesn't do cause any rdp traffic)
-#   - add a general purpose disassembler per architecture so source files
-#       don't need to be loaded
-#   - add a -structs command line flag to load data structures that are not
-#       tied to a specific architecture.  aka:
+#       but it doesn't cause any rdp traffic)
+#   - add a general purpose disassembler per architecture so list/map/source
+#       are mostly optional
+#   - add a -structs command line flag to load 'application' data structures
+#       that are architecture independent.  aka:
 #           $ pgdb -arch x86_64 -structs linux4.0.7,mydriver,yourapp
 #
 # future:
 #   - properly define source contexts and what they mean.  as I've added
-#       features such as proper symbol support, the temporary work arounds
+#       features such as proper symbol support, the temporary work-arounds
 #       I used to support multiple source contexts have become strained.
 #       restricting symbol lookups to the source context in which they were
 #       defined is good in some cases, bad in others.
@@ -216,13 +251,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #       post-link addresses, machine opcodes, and interlaced source code is
 #       a way to improve debugging productivity - as opposed to tools that
 #       try to integrate multiple files ...
+#   - of course, should pgdb get to the point where it needs to know which
+#       process in a multitasking OS is currently running, the gdb-rdp
+#       protocol needs to provide a new class of contextual information about
+#       the running OS which can be added to the cpu context (e.g. current
+#       process id), and then the pgdb command line can provide the proper
+#       source context for each process id ...
 #
 # gdb remote debug protocol changes that are BADLY needed:
 #   - the response string must include the command to which it is replying
 #       (solves race conditions for event driven designs that queue cmds)
-#   - return the control regs (gdt,ldt,cr3,etc!) why just a subset!?
-#       could also easily return the complete gdt/ldt descriptors for the
-#       segment regs in protected mode too (would make our lives way easier)
+#   - so the 3.1.0 qemu finally has system_register support for aarch64 ...
+#       but not yet for x86 (sigh).  anyway, rdp could also easily return
+#       the complete gdt/ldt descriptors for the segment regs in protected
+#       mode too (which would make our lives here in the debug front end
+#       world way easier)
 #
 # contributors:
 #   djv - Duane Voth
@@ -232,12 +275,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #   2015/10/15 - v0.06 - djv - moved fads functions inside pgdb
 #   2015/11/05 - v0.07 - djv - group cmdline files
 #   2015/12/27 - v0.08 - djv - add cpu modes
+#   2019/05/12 - v0.09 - djv - update for qemu 3.1.x (proper feature support)
 
-Version = "PGDB v0.08 2015/12/27"
+Version = "PGDB v0.09 2019/05/12"
+
 
 # We're fresh out of lines for the main help window - too many keys
 # to document.  (Note, we have to fit in 24 lines)  I can't seem to
-# get rid of the last blank line either.
+# get rid of the last blank line in ncurses windows either.
 
 Help_text_main = \
 """      h - toggles visibility of context sensitive help
@@ -299,6 +344,25 @@ import asyncore
 import traceback
 import importlib
 
+
+# setup Logfile support - a way to debug when ncurses isn't
+# ready and printing to both stdout and stderr don't work.
+# swap the 'logfile = open...' comment to enable:
+logfile = None
+#logfile = open('pgdb.DBG', 'w')
+
+def Logfile(*args):
+    if logfile == None: return
+    for a in args:
+        logfile.write(str(a))
+    logfile.write('\n')
+    logfile.flush()
+
+
+# make ctrl+pgup and ctrl+pgdn work properly for recent urxvt
+if os.environ['TERM'] == 'rxvt-unicode-256color':
+    os.environ['TERM'] = 'rxvt'
+
 Arch = None
 Arch_name = 'x86'           # neither qemu-i386 or qemu-x86_64 offer any .xml
                             # files, nor does qemu-alpha or the sparcs - gees,
@@ -348,13 +412,15 @@ def load_arch_module():
     fn = 'pgdb_' + Arch_name
     try:
         Arch = importlib.import_module(fn)
-        Log.write('Cpu architecture is ' + Arch.name + '\n', attr=CPok)
+        Log.write('Cpu architecture is ' + Arch.name + '  ', attr=CPok)
+        Log.write('(or this qemu is old and didn\'t report a cpu type)\n')
         Arch.Log = Log
         Arch.DSfns = DSfns
+        Arch.CPerr = CPerr
     except:
-        Arch = FakeArch()
         Log.write('unable to load %s\n' % fn, CPerr)
         Log.write('try:  python %s  alone to check for errors\n' % fn, CPerr)
+        Arch = FakeArch()
 
 class FakeArch(object):
     name = 'ERSATZ'
@@ -362,7 +428,7 @@ class FakeArch(object):
     cpu_maxy = 2
     cpu_maxx = 6
 
-    def generate_gspec(self, tree): pass        # called if qXfer:features:read
+    def generate_gspec(self, name, tree): pass  # called if qXfer:features:read
     def alter_ego(self, n): return None
     def get_seg_register(self, x): return None
     def get_ip_register(self, x): return None
@@ -414,6 +480,17 @@ def parse_xml(data):
     # generates lists of tuples with 5 elements per tupple:
     #   (tag, attrs, pre-text, subtree, post-text)
 
+    # strip out comments
+    x = data.split('<!--')
+    if len(x) > 1:
+        data = x[0]
+        for y in x[1:]:
+            if y.find('-->') >= 0:
+                data += y.split('-->')[1]
+            else:
+                data += y
+        Log.write('## nocom ' + data + '\n')
+
     tags = [t.rstrip().rstrip('>') for t in data.split('<')[1:]]
     root = []
 
@@ -447,17 +524,39 @@ def parse_xml(data):
                 # not a self-ending tag, recurse another level
                 parse_tags(subtree, tags)
 
-            # tag contains only attributes
             parts = tag.split()
+            # tag contains only attributes
             tree.append((parts[0], parts[1:], text, subtree, ''))
 
-    try:
+    try:               # comment out try/except to debug this ...
         parse_tags(root, tags)
     except:
         Log.write('error parsing xml: %s\n' % traceback.format_exc(), CPerr)
 
     return root
 
+def search_xml(data, search_str):
+    # look for a specific tag
+    tags = [t.replace('>', ' ') for t in data.split('<')[1:]]
+    #Log.write('## tags ' + str(tags) + '\n')
+    rvals = []
+    for t in tags:
+        parts = t.split()
+        if parts[0] == search_str:
+            dct = {}
+            for p in parts[1:]:
+                if p.find('=') > 0:
+                    if len(p.split('=')) > 0  and  len(p.split('"')) > 1:
+                        dct[p.split('=')[0]] = p.split('"')[1]
+                    else:
+                        Log.write('rdp xml format error: ' + str(p) + '\n', CPhi)
+                else:
+                    dct[search_str] = p
+            rvals.append(dct)
+    return rvals
+
+
+_feature_reads_to_process = []
 
 class GdbClient(asyncore.dispatcher):
 
@@ -507,7 +606,7 @@ class GdbClient(asyncore.dispatcher):
         self.lastcmd = cmd
         s = '$' + cmd + '#' + "%02x" % (sum([ord(c) for c in cmd]) & 0xff)
         self.sbuf = s.encode('ascii')
-        Log.write('w-- ' + str(self.sbuf) + '\n')
+        #DEBUG Log.write('w-- ' + str(self.sbuf) + '\n')
         sent = self.send(self.sbuf)
         self.sbuf = self.sbuf[sent:]
 
@@ -516,7 +615,7 @@ class GdbClient(asyncore.dispatcher):
 
     def handle_read(self):
         data = self.recv(8192).decode('ascii')
-        Log.write('r-- ' + data + '\n')
+        #DEBUG Log.write('r-- ' + data + '\n')
         self.process_read(data)
 
     def process_read(self, data):
@@ -594,8 +693,9 @@ class GdbClient(asyncore.dispatcher):
                     if self.process_threadinfo():
                         self.queue_cmd('qsThreadInfo')
                 else:
-                    Log.write('++ rdp response to [%s] not implemented' % (
-                                                    self.lastcmd))
+                    if self.rbuf != 'OK':
+                        Log.write('++ rdp response to [%s] is [%s]\n' % (
+                                                    self.lastcmd, self.rbuf))
 
                 self.lastcmd = None
                 self.rbuf = ''
@@ -612,6 +712,8 @@ class GdbClient(asyncore.dispatcher):
                 # ask for the xml
                 self.queue_cmd('qXfer:features:read:target.xml:0,ffb')
                 cmds += 1
+            else:
+                Log.write('feature: %s\n' % feature)
 
         if cmds == 0:
             # get the machine state now
@@ -619,36 +721,40 @@ class GdbClient(asyncore.dispatcher):
         # else let process_feature_read get the machine state
 
     def process_feature_read(self):
-        global Arch_name
+        global Arch_name, _feature_reads_to_process
         reqfn = self.lastcmd.split(':')[3]
+
+        # get names of xml files available for the target
+        incs = search_xml(self.rbuf, 'xi:include')
+        if len(incs) > 0:
+            _feature_reads_to_process += [inc['href'] for inc in incs]
+
         if reqfn == 'target.xml':
-            # got names of xml files available on the target
-            tree = parse_xml(self.rbuf)
-            #import pprint
-            #Log.write(pprint.pformat(tree) + '\n')
-            #            +- xml
-            #            |     +- !DOCTYPE
-            #            |     |     +- target
-            #            |     |     |
-            files = tree[0][3][0][3][0][3]
-            Log.write('target has %d files\n' % len(files))
-            # queue them all up
-            for tag,attrs,txta,subtree,txtb in files:
-                fn = attrs[0].split('"')[1]
-                Log.write('++ %s\n' % fn, CPdbg)
-                Arch_name = fn.split('-')[0]
-                self.queue_cmd('qXfer:features:read:%s:0,ffb' % fn)
-            Log.write('\n')
+            atags = search_xml(self.rbuf, 'architecture')
+            Log.write('## arch ' + str(atags) + '\n')
+            Arch_name = atags[0]['architecture']
+            # hacks for names I hope they will change ...
+            if Arch_name == 'i386:x86-64':
+                Arch_name = 'i386'
+            Log.write('## archname [%s]' % Arch_name + '\n')
             load_arch_module()
+
+        #Log.write('## reqfn [%s]\n' % reqfn)
+        #Log.write('## includes ' + str(_feature_reads_to_process) + '\n')
+
+        # qemu 3.x
+        feature = search_xml(self.rbuf, 'feature')
+        if len(feature) > 0  and  'name' in feature[0]:
+            Arch.generate_gspec(feature[0]['name'], search_xml(self.rbuf, 'reg'))
+            #logs parse output ...  tree = parse_xml(self.rbuf)
+
+        if len(_feature_reads_to_process) == 0:
             # then get the machine state
             self.queue_cmd('?')             # triggers process_stop
-            return
+        else:
+            self.queue_cmd('qXfer:features:read:%s:0,ffb' % _feature_reads_to_process.pop(0))
 
-        # process each of the others files we get
-        #with open('foo-' + reqfn, 'w') as fh:
-        #    fh.write(self.rbuf + '\n')
-        tree = parse_xml(self.rbuf)
-        Arch.generate_gspec(tree)
+
 
     def process_stop(self):
 
@@ -688,7 +794,7 @@ class GdbClient(asyncore.dispatcher):
     def process_regs(self):
         global Arch, Arch_name
         # currently the only way to know qemu has switched cpu modes is by
-        # the length of the get register data.  if the current module doesn't
+        # the length of the get register data!  if the current module doesn't
         # support the length we received and it offers an alternate, switch.
         arch_spec_lens = Arch.spec.keys()
         spec_len = len(self.rbuf)
@@ -704,9 +810,9 @@ class GdbClient(asyncore.dispatcher):
                     Cpus[cpu].resize(y, x)
 
             else:
-                err = '**** expected one of %s hex digits for the %s cpu architecture' % (
+                err = '**** expected one of %s hex digits for %s\n' % (
                                 str(arch_spec_lens), Arch.name)
-                err += ' - but received %d (ie. wrong cpu architecture) ****' % (spec_len)
+                err += '**** but received %d (ie. unknown cpu architecture)' % (spec_len)
                 update_status(err, CPerr)
                 Log.write(err.replace('-', '****\n****') + '\n', attr=CPerr)
                 return
@@ -751,7 +857,7 @@ class GdbClient(asyncore.dispatcher):
             # restore stopped thread/cpu
             # humm, self.stopped_thread can be None if user steps too fast?
             if self.stopped_thread:
-                self.queue_cmd('Hg%d' % self.stopped_thread)
+                self.queue_cmd('Hg%02x' % self.stopped_thread)
                 # FIXME if pgdb can't pick the right source file, setting
                 # active obj here will override the users source file
                 # selection and piss them off ...
@@ -848,7 +954,7 @@ class GdbClient(asyncore.dispatcher):
 # dependency!  Yeah, its geometric.  So until fads makes it in to the core
 # python install(!), I'm refusing to make it a library.  *You* can, of course
 # if you want, but *I* will not require users to setup extra support libraries
-# to make pgdb run.  Besides, since can switch architecture modules out on
+# to make pgdb run.  Besides, since pgdb can switch architecture modules out on
 # the fly, FADS should only really be loaded once even though many of the
 # modules use it.  What follows are the member functions for the FADS system
 # wrapped in a dictionary that I can export across modules.
@@ -879,7 +985,11 @@ def ds_reconstruct_hex(data, build_list):
             val = data[byte*2:byte*2+2] + val
         if bld.lshift % 4 != 0:
             raise Exception('for hex reconstruction, lshift must be mult of 4')
-        v = int(val, 16) << bld.lshift
+        try:
+            v = int(val, 16) << bld.lshift
+        except:
+            Log.write('+++ fail val=[%s]' % str(val), CPerr)
+            raise Exception('bad hex value: ' + str(val))
         rval |= v
         m = bld.mask << bld.lshift
         mask |= m
@@ -1251,18 +1361,34 @@ def locate_src(seg, ip):
     best_src = None
     best_idx = None
     dbg = 'locating %x:%08x\n' % (seg, ip)
-    dbg += 'active src %s\n' % os.path.basename(Active_src.fname)
-    dbg += 'recent %s\n' % str(
-                    [os.path.basename(src.fname) for src in Recent_src])
+    if hasattr(Active_src, 'fname'):
+        dbg += 'active src %s\n' % os.path.basename(Active_src.fname)
+        dbg += 'recent %s\n' % str(
+                        [os.path.basename(src.fname) for src in Recent_src])
+        dbg += 'all %s\n' % str(
+                    [os.path.basename(src.fname) for src in Srcs])
     n = 0
     # next, see if any src files have a starting offset that is below our ip
     src_candidates = []
     for src in Srcs:
-        dbg += 'seg{%s,%d}  ' % (str(src.segments), seg)
+        dbg += '%16s seg{%s,%d}  ' % (os.path.basename(src.fname), str(src.segments), seg)
         if src.segments and seg in src.segments:
             dbg += 'ip{%x,%x}  ' % (src.offset, ip)
+
+            # FIXME  Ok, heres where it gets fuzzy.  What algorithm should
+            # be used to pick the best candidate?  This has evolved over time
+            # but still makes mistakes.  It is probably best fixed by introducing
+            # some other mechanism to group source files ... on the command line
+            # (or group all source files refed by a map file! duh.)
+
+            # an exact ip match is favored over other
+            if src.offset == ip:
+                best_src = src
+                best_offset = src.offset
+                dbg += '\n'
+
             # choose src with the nearest base offset just below our ip
-            if src.offset <= ip:
+            elif src.offset < ip:
                 # if the ip can't be matched, it's not a good candidate 
                 if not src.ip_search(ip):
                     dbg += '\nip not found in %s\n' % os.path.basename(src.fname)
@@ -1270,14 +1396,15 @@ def locate_src(seg, ip):
                 src_candidates.append(src)
                 n += 1
                 dbg += 'candidate %s' % os.path.basename(src.fname)
-                # the active source window is favored over all other candidates
+
+                # the active source window is favored over other candidates
                 if src == Active_src:
                     best_src = src
                     best_offset = src.offset
                     dbg += '\n'
-                    break
+
                 # recent source files favored over new ones
-                if src in Recent_src:
+                elif src in Recent_src:
                     new_idx = Recent_src.index(src)
                     if best_idx == None or new_idx < best_idx:
                         best_src = src
@@ -1312,7 +1439,12 @@ def locate_src(seg, ip):
                         best_src = src
                         dbg += 'best now lbl=%s in %s\n' % (name,
                                             os.path.basename(src.fname))
-    Log.write(dbg, CPdbg)       # this one is frequently useful ...
+
+    # so yeah the nearest-symbol lookup code is disappointingly dense,
+    # but this next Log.write dbg statement is really useful for debugging
+    # it all ...
+    #Log.write(dbg, CPdbg)              # DEBUG
+
     # assuming the offset will never be 0
     if best_offset:
         # if we only have one candidate, switch to it.
@@ -1325,7 +1457,7 @@ def locate_src(seg, ip):
                 update_status()
             Active_src = best_src
             Active_src.center()
-            Log.write('auto pick %s\n' % best_src.fname)
+            #DEBUG Log.write('auto pick %s\n' % best_src.fname)
     else:
         # no source file seems to describe where ip is,
         # how about a generic disassembly Background panel as a default?
@@ -1407,6 +1539,11 @@ class Movable_panel(object):
         self.visible = False
 
     def resize(self, y, x):
+        my,mx = Stdscr.getmaxyx()
+        if y > my  or  x > mx:
+            Log.write('your current terminal %dx%d is too small for the ' % (mx, my), CPhi)
+            Log.write('requested %dx%d window,\n' % (x, y), CPhi)
+            Log.write('suggest you restart with a bigger terminal.\n', CPhi)
         self.h = y
         self.w = x
         self.win.resize(y, x)
@@ -1448,17 +1585,18 @@ class Movable_panel(object):
 
 
 class Cpu(Movable_panel):
-    def __init__(self, i, mode):
+    def __init__(self, i, spec_len):
         global Active_cpu, Active_obj
         h,w = Stdscr.getmaxyx()
-        if mode > 0:
-            y,x = Arch.spec[mode]['maxy'], Arch.spec[mode]['maxx']
+        if spec_len > 0:
+            y,x = Arch.spec[spec_len]['maxy'], Arch.spec[spec_len]['maxx']
+            self.mode = Arch.spec[spec_len]['mode']
         else:
             y,x = 0,0
+            self.mode = None
         Movable_panel.__init__(self, y,x, i+2,i*3+4, ' cpu%d ' % i)
         self.i = i
         self.regs = {}          # register values are integers
-        self.mode = mode
         self.last_ip = None
 
     def update(self, newregs, mode):
@@ -1471,17 +1609,19 @@ class Cpu(Movable_panel):
         else:
             title_attr = curses.A_NORMAL
 
+        # if the cpu operating mode changed, rezise the window for the new regset
         if (self.mode != mode):
             y,x = Arch.spec[mode]['maxy'], Arch.spec[mode]['maxx']
             self.resize(y, x)
 
+        # get all the register display strings
+        # (not just the ones currently displayed)
         strs = Arch.cpu_reg_update(self, newregs, mode)
         self.add_strs(strs, CPnrm)
 
         # update regs
         for key, val in newregs.items():
             self.regs[key] = val
-        self.mode = mode
 
         if self == Active_cpu:
             self.locate()
@@ -1504,7 +1644,9 @@ class Mem(Movable_panel):
         # hex strings work.  and I can only get qemu to return physical memory,
         # no segmented or logical addresses ...
         global Active_mem
-        self.count = count if count else 0x40
+        # this was: self.count = count if count else 0x40
+        # but I like to see more data - bad fix however for small terminals
+        self.count = count if count else 0x100
         self.h = (self.count + 15)//16
         self.w = 77
         h,w = Stdscr.getmaxyx()
@@ -1547,8 +1689,8 @@ class Mem(Movable_panel):
 
     def scroll(self, kname):
         # don't scroll, instead move the address up/down half a window
-        if   kname == CTRL_PAGEU: self.addr -= 0x20
-        elif kname == CTRL_PAGED: self.addr += 0x20
+        if   kname == CTRL_PAGEU: self.addr -= int(self.count/2)
+        elif kname == CTRL_PAGED: self.addr += int(self.count/2)
         self._mkcmd()
         self.refetch()
 
@@ -1623,13 +1765,14 @@ class Mem_ds(Movable_panel):
 
 class Logging(Movable_panel):
     def __init__(self):
+        # 26 is also a good log window height
         self.h = 16
         self.w = 77
         sh,sw = Stdscr.getmaxyx()
         y = 17
         if y+self.h > sh-2:  y = sh - 2 - self.h
         Movable_panel.__init__(self, self.h+2,self.w+2, y,sw-self.w-2, ' log ')
-        # bah, can't find anything on prefresh, subpad, or subwin
+        # bah, can't find any docs on prefresh, subpad, or subwin, must use newpad
         self.pad = curses.newpad(1000, self.w-2)
         self.pad.scrollok(True)
         self.scrollback = 0
@@ -1685,7 +1828,7 @@ class Background_panel(object):
     # - cannot be moved (the panel origin is fixed, but the overlay
     #                   start point is changed to mimic scrolling)
     # - there is only ever one background panel visible at one time
-    # - background panels are always at the bottom of the panel stack
+    # - background panel is always at the bottom of the panel stack
     #
     # There are two coordinate systems in effect:
     #   1) the focus point y,x (relative to stdscr 1,0)
@@ -1709,8 +1852,8 @@ class Background_panel(object):
 
     def focus_point(self):
         # return the line number and line offset for the location where
-        # search centering and ip reads are done, and return the stdscr
-        # h and w while we're at it ...
+        # search results should be centered and ip reads done
+        # (and return the stdscr h and w while we're at it ...)
         sh,sw = Stdscr.getmaxyx()
         return sh, sw, sh // 4 * 3, sw // 4
 
@@ -1839,23 +1982,26 @@ class Src(Background_panel):
                 #while len(self.lines[-1]) == 0:
                 if len(self.lines[-1]) == 0:
                     self.lines[-1] = '-blank-'
+            #Log.write('+++ parsed %s as %s\n' % (fname, self.ftype))
         else:
             cols = len(self.lines[0])
 
         self.make_pad(self.lines, cols)
 
+        fname = os.path.basename(fname)
         if self.offset == None:
             # if no offset was supplied and we didn't find one, try 0
-            self.offset = 0
-            off = 'unset'
-            cp = CPerr
+            # ran into this when -nasmlst was used when it wasn't needed,
+            # file was loaded by gcc map ...
             Log.write(fname + ' has no starting address')
+            self.offset = 0
+            cp = CPhi
         else:
-            off = '%08x' % self.offset
             cp = CPnrm
+        off = '%08x' % self.offset
         Log.write('loaded %2d  %-20s %-8s %8s:%s\n' % (
-                            len(Srcs), os.path.basename(fname),
-                            self.ftype, str(self.segments), off), cp)
+                            len(Srcs), fname, self.ftype,
+                            str(self.segments), off), cp)
 
         # make the first source file visible
         if len(Srcs) == 1 and not Active_src:
@@ -1871,6 +2017,7 @@ class Src(Background_panel):
                     self.segments = [0]
                 if not self.offset:
                     self.offset = int(mobj.group().split('=')[-1].strip(), 16)
+                return
             # or 'org'
             mobj = re.search('org\s*0x[0-9a-f]+', ln, re.I)
             if mobj:
@@ -1878,6 +2025,15 @@ class Src(Background_panel):
                     self.segments = [0]
                 if not self.offset:
                     self.offset = int(mobj.group().split()[1].strip(), 16)
+                return
+            # or just 'section .text' in which case assume offset 0
+            mobj = re.search('section\s*.text+', ln, re.I)
+            if mobj:
+                if not self.segments:
+                    self.segments = [0]
+                if not self.offset:
+                    self.offset = 0
+            return
         #elif self.ftype == 'objdump':
             # for the gcc toolchain, the map file has the .text section origin
             #pass
@@ -1930,7 +2086,7 @@ class Src(Background_panel):
         # are managed by read_nextip_at_or_after_focus_point() and by
         # set_and_show_breakpoint() respectively.
 
-        Log.write('++ src.search [%s] restart=%s\n' % (text, restart))
+        #DEBUG  Log.write('++ src.search [%s] restart=%s\n' % (text, restart))
         # we will center the display of found text at the focus point
         sh,sw, fy,fx = self.focus_point()
         ey,ex = self.extra_yx
@@ -2024,7 +2180,7 @@ class Src(Background_panel):
                 # are displayed relative to the segment base address instead of
                 # the the function address.
                 sstr = ' %x: ' % (ip - base)
-                Log.write('ip_search: [%s] -> [%s]\n' % (label, sstr))
+                #DEBUG Log.write('ip_search: [%s] -> [%s]\n' % (label, sstr))
                 # lookup label first, but confine the search to the left
                 # margin (ought to replace this with something like:
                 #         re.search('[0-9a-f]* <([\w_]*)>:', ln) ... the same
@@ -2229,11 +2385,16 @@ def load_gccmap_file(fname, segs, file_base):
     if file_base == None:  file_base = 0
 
     srcobj = None
+    parsed_something = False
     path = os.path.dirname(fname)
     with open(fname) as fh:
+        Logfile('fn ' + fname + '\n')
         state = None
         for ln in fh.readlines():
+            sfn = ':' + srcobj.fname.split('/')[-1] if srcobj != None else ''
+            Logfile('ln [' + str(state) + sfn + '] ' + ln.strip())
             if len(ln) == 0:
+                Logfile('+++ gccmap oh! no lines? %s' % fname)
                 state = None; srcobj = None
                 continue
 
@@ -2250,17 +2411,24 @@ def load_gccmap_file(fname, segs, file_base):
                 continue
 
             # a section marker must be processed before a symbol can be added
-            if ntokens == 2:
+            if srcobj != None  and  ntokens == 2:
                 if state == 'data':
+                    Logfile('+++ data -- %s %s %s' % (srcobj.fname, t2, t1))
                     srcobj.datasyms.append((t2, int(t1, 16), segs, sec_base))
                 elif state == 'code':
+                    Logfile('+++ code -- %s %s %s' % (srcobj.fname, t2, t1))
                     srcobj.codesyms.append((t2, int(t1, 16), segs, sec_base))
                 continue
 
             # look for the indented .data and .text section markers
-            if ln.startswith(' .data '):
+            if ln.startswith(' .data ') or ln.startswith(' COMMON '):
+                lstfname = os.path.join(path, t4.split('.')[0] + '.lst')
+                sec_base = int(t2, 16)
+                file_offset = int(t2, 16)
+                srcobj = match_src_file(lstfname, segs)
+                # should we create Src windows here too?
                 state = 'data';
-                sec_base = 0
+                #sec_base = 0
             elif ln.startswith(' .text ') or ln.startswith(' .text.startup '):
                 lstfname = os.path.join(path, t4.split('.')[0] + '.lst')
                 sec_base = int(t2, 16)
@@ -2269,13 +2437,15 @@ def load_gccmap_file(fname, segs, file_base):
                 if not srcobj:
                     # we don't know the ftype, let Src() figure it out
                     srcobj = Src(lstfname, None, segs, file_base + file_offset)
+                    parsed_something = True
                 state = 'code'
             elif not ln.startswith('   '):
                 # skip other .<section>
-                if srcobj: dump_symbols(srcobj)
                 state = None; srcobj = None
                 sec_base = 0
-    if srcobj: dump_symbols(srcobj)
+
+    if not parsed_something:
+        Log.write('couldn\'t find anything to parse in %s\n' % fname, CPerr)
 
 
 def parse_fname_spec(fname_spec):
@@ -2301,7 +2471,7 @@ def parse_fname_spec(fname_spec):
         else:
             segments.append(int(segs, 16))
     else:
-        # for non-segmented architectures, assume one segment at 0
+        # for non-segmented architectures (eg. ARM), assume one segment at 0
         segments = [0]
         fname = fname_spec
 
@@ -2319,7 +2489,6 @@ def load_src_file(fname_spec, ftype):
             fname = fname.rsplit('.', 1)[0] + '.map'
             if file_exists(fname, None, warning=True):
                 load_nasmmap_file(fname, segments, srcobj)
-            dump_symbols(srcobj)
 
     # gcc map files can name multiple lst files
     elif ftype in ["gccmap"]:
@@ -2402,6 +2571,9 @@ def inputmode_normal(c):
             #off = ('%x' % Active_src.offset) if Active_src.offset else 'none'
             #update_status('segments=%s  offset=%s' % (str(Active_src.segments), off), CPdbg)
             update_status(Active_src.fname, CPnrm)
+    elif ch and ch in '=':
+        # watchpoint break (will eventually prompt for register or memory loc? to match)
+        update_status('sorry, not yet implemented ...', CPhi)
     elif ch and ch in 'aA':
         Text = ''
         Prompt = 'show address: '
@@ -2447,6 +2619,8 @@ def inputmode_normal(c):
             mobj.kill()
     elif ch and ch in 'nN':
         Active_src.search(HILITETYP_TXT, restart=False)
+    #elif ch and ch in 'p':
+    #    dump_target_mem()
     elif ch and ch in 'rR':
         reorder_cpu_panels(Gdbc.stopped_thread, Gdbc.nthreads)
         refresh_all()
@@ -2755,6 +2929,12 @@ def inputmode_memwrite(c):
             update_status(Prompt + Text + note, CPnrm)
     return inputmode_memwrite
 
+def dump_target_mem():
+    # doesn't display anything, only useful if the Log.write('r--' ...)
+    # in handle_read is enabled ...
+    Gdbc.queue_cmd('m7000,32')
+    return
+
 # ----------------------------------------------------------------------------
 # main
 
@@ -2789,6 +2969,10 @@ def main(stdscr):
         else:
             fname = sys.argv[argc]
             load_src_file(fname, srctype)
+
+    # dump symbols to log window for debugging
+    for src in Srcs:
+        dump_symbols(src)
 
     stdscr.nodelay(1)               # make getch() non-blocking
     stdscr.timeout(100)             # (ms) reduce cpu usage while still

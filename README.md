@@ -7,29 +7,30 @@ No, seriously, to try out PGDB, pick an example directory and
 follow the README - that is the fastest way.
 
 PGDB provides source level debugging for assembly code such as NASM
-built ROMS and kernels.  Some support is also available for the GCC
-tool chain.
+built ROMS and kernels.  I've added a lot of support for the GCC
+tool chain, but its complex and is likely missing features.
+
+Python 2.7 and 3.x should both work.
 
 You only need pgdb.py and pgdb_*arch*.py for the architecture you
-want to debug in your current directory or path.  Python 2.7 and 3
-supported.
+want to debug in your current directory or path.
 
-PGDB video demo/tutorial on youtube:
+PGDB has been updated for QEMU 3.1.0 (as of 2019).  3.1.0 has GDB RDP
+(remote debug protocol) support for AARCH64 floating point and system
+registers, and uses the new xml format to describe x86 architectures
+(unfortunatly the x86 system registers are still missing).  Regardless,
+this is a far better environment than the previous QEMU 2.x situation,
+and so QEMU 2.x is no longer supported.
+
+PGDB video demo/tutorial on youtube (not updated for the 2019 release,
+so the i386 to x86_64 transition at 16:45 is different - qemu now simply
+starts in 64bit mode even though the cpu is in 32bit mode :< and doesn't
+tell us about any transitions ... hopefully this will be addressed when
+the system registers are implemented so the alter-ego feature of pgdb
+can again be used):
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=TuvjGCcVXMc" target="_blank"><img src="http://img.youtube.com/vi/TuvjGCcVXMc/0.jpg" 
 alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
-
-****************************************************************************
-```
-I'm sorry I haven't been able to keep up with the evolving QEMU code
-base.  Many things are changing there, including the ABI used by PGDB.
-I originally tested PGDB against QEMU version 2.4.50 - I may need to
-upload a snapshot of this version to archive here with PGDB.
-There have also been some bugs or changes introduced in QEMU recently
-(2.8.0) that no longer support 32 bit mode in the x86_64 version.
-I'm hoping this is a temporary bug or a mistake ...
-```
-****************************************************************************
 
 
 usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] ...
@@ -58,7 +59,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
      arrows,pageup,pagedn,home - scroll source window
 
 ### breakpoint command help:
-    QEMU breakpoints are logical hex addresses (CS is not involved).
+    QEMU breakpoints are _logical_ hex addresses (CS is not involved).
     ESC aborts set breakpoint.  A suggested breakpoint value is taken
     from the address in the source window highlighted in white.
     The white address is the next valid instruction pointer location
@@ -90,5 +91,7 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
 Donations gladly accepted and will certainly attract more of my attention :)
 
     email: duanev at gmail
-    bitcoin: 16yQJg1fXCvVUETQVpSoxLAwNPKXKRYvXN
+    btc: 3PkNXvGkzeLR2J1xgPHkFDEM7xFbEHCZQB
+    eth: 0xddf2A3501333a88f1e0210D1F704aEC3496B1b51
+    ltc: MCz4GnddyXLXvVa1wvb7WnzTT5JVLMgA2j
 

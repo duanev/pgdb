@@ -8,8 +8,9 @@
 #   2015/10/12 - v0.01 - djv - released
 #   2015/10/16 - v0.02 - djv - display cpsr flags
 #   2015/12/27 - v0.03 - djv - add cpu modes
+#   2019/05/12 - v0.04 - djv - update for qemu 3.1.x (proper feature support)
 
-version = "PGDB arm v0.03 2015/12/27"
+version = "PGDB arm v0.04 2019/05/12"
 
 name = 'arm'
 
@@ -28,22 +29,16 @@ gspec_idx = 0
 
 #import pprint
 
-def generate_gspec(xml_tree):
+def generate_gspec(name, xml_tree):
     global gspec, gspec_idx
-    #Log.write(pprint.pformat(xml_tree) + '\n')
-    #                   +- xml
-    #                   |     +- !DOCTYPE
-    #                   |     |     +- feature
-    #                   |     |     |
-    features = xml_tree[0][3][1][3][0][3]
-    for feature in features:
-        if feature[0] == 'reg':
-            attrs = feature[1]
-            rname = attrs[0].split('"')[1]
-            n = int(attrs[1].split('"')[1]) // 4    # 4 bits per nibble
-            gspec.append((rname, gspec_idx, gspec_idx+n))
+    if name == 'org.gnu.gdb.arm.core':
+        for r in xml_tree:
+            n = int(r['bitsize']) // 4    # 4 bits per nibble
+            gspec.append((r['name'], gspec_idx, gspec_idx+n))
             gspec_idx += n
-    #Log.write(pprint.pformat(gspec) + '\n')
+    else:
+        Log.write('## deal with feature "' + name + '" later ...\n')
+        #Log.write(pprint.pformat(gspec) + '\n')
 
 
 spec = {  136: { 'mode':None,  'maxy':7,  'maxx':58, 'gspec':gspec } }
@@ -182,9 +177,9 @@ _cpsr_els = (
          DSVAL(0x00080000,0x00080000,' ge3'), DSVAL(0x00040000,0x00040000,' ge2'),
          DSVAL(0x00020000,0x00020000,' ge1'), DSVAL(0x00010000,0x00010000,' ge0'),
          DSVAL(0x00001000,0x00001000,' big'), DSVAL(0x00000800,0x00000800,' a'),
-         DSVAL(0x00000400,0x00000400,' id'),  DSVAL(0x00000200,0x00000200,' fd'),
+         DSVAL(0x00000400,0x00000400,' i0'),  DSVAL(0x00000200,0x00000200,' f0'),
 
-         #DSVAL(0x00000010,0x00000010,' thmb'),
+         #DSVAL(0x00000100,0x00000100,' thmb'),
          DSVAL(0x0000001f,0x0000001f,'\a sys\t'), DSVAL(0x0000001f,0x0000001e,'\r UND\t'),
          DSVAL(0x0000001f,0x0000001d,'\r UND\t'), DSVAL(0x0000001f,0x0000001c,'\r UND\t'),
          DSVAL(0x0000001f,0x0000001b,'\a und\t'), DSVAL(0x0000001f,0x0000001a,'\r hyp\t'),

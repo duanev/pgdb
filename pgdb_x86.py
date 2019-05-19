@@ -36,14 +36,14 @@ def alter_ego(n):
 # returns a long string of hex digits, which are the cpu
 # registers all packed together - we have to parse this.
 # The following Gspec arrays determine register display
-# order, as well as parsing specific register data from
-# the gdb cmd response string.
+# order, as well as the position (start and end) of
+# specific register data from the gdb cmd response string.
 
-# 16 bit mode is a total guess ... it has not been debugged
 gspec16 = [
+    # 16 bit mode is a total guess ... it has not been debugged
     ['ax',      0,   4], ['bx',     12,  16], ['cx',      4,   8], ['dx',      8,  12],
     ['di',     28,  32], ['si',     24,  28], ['bp',     20,  24], ['flags',  36,  40],
-    ['cs',     40,  44], ['eip',    32,  36], ['ss',     44,  48], ['esp',    16,  20]
+    ['cs',     40,  44], ['ip',     32,  36], ['ss',     44,  48], ['esp',    16,  20]
 ]
 
 gspec32 = [
@@ -98,8 +98,9 @@ spec = {  111: { 'mode':'16b', 'maxy':7,  'maxx':50, 'gspec':gspec16 },
 
 # Cpu methods
 
-def cpu_reg_update(self, newregs, mode):
+def cpu_reg_update(self, newregs, speclen):
     strs = []
+    mode = spec[speclen]['mode']
 
     def rdiff(y, x, fmt, rname, newr, oldr):
         new = newr[rname]
@@ -108,11 +109,11 @@ def cpu_reg_update(self, newregs, mode):
         strs.append((y, x, attr + fmt % new))
 
     if self.mode == mode:
-        strs.append((0, 10, ' %s ' % spec[mode]['mode']))
+        strs.append((0, 10, ' %s ' % mode))
     else:
-        strs.append((0, 10, ' \a%s ' % spec[mode]['mode']))
+        strs.append((0, 10, ' \a%s ' % mode))
 
-    if mode == 616:
+    if mode == '32b':
         # zero row is the title row
         rdiff(0, 20, ' %04x:',      'cs',    newregs, self.regs)
         rdiff(0, 26, '%08x ',       'eip',   newregs, self.regs)
@@ -133,7 +134,7 @@ def cpu_reg_update(self, newregs, mode):
         rdiff(4, 30, 'fctrl %08x',  'fctrl', newregs, self.regs)
         rdiff(4, 45, 'flags %08x',  'flags', newregs, self.regs)
 
-    elif mode == 1072:
+    elif mode == '64b':
         # I'm not completely happy with this layout ...
 
         # zero row is the title row
@@ -171,16 +172,18 @@ def cpu_reg_update(self, newregs, mode):
     x = newregs['flags']
     fla = '%02x' % (x&0xff) + '%02x' % ((x&0xff00)>>8) + '%02x00' % ((x&0xff0000)>>16)
     flstr = DSfns['ds_print_one'](fla, ds_eflags)[0]
-    if mode == 616:
+    if mode == '32b':
         # so the max possible eflags string is like 53,
         # here I hope that not all flags will be on at the same time
         strs.append((5, 14, '%45s' % flstr))
-    elif mode == 1072:
+    elif mode =='64b':
         ## lol, messy, but cool
         #x = newregs['flags']
         #fla = '%02x' % (x&0xff) + '%02x' % ((x&0xff00)>>8) + '%02x00' % ((x&0xff0000)>>16)
         #flstr = DSfns['ds_print_one'](fla, ds_rflags)[0]
         strs.append((9, 16, '%45s' % flstr))
+    elif mode == '16b':
+        strs[rset].append((5, 14, '%45s' % flstr))
 
 
     # TODO: at one point I used this for XMM and ST regs - only displayed the
@@ -199,6 +202,7 @@ def cpu_reg_update(self, newregs, mode):
     #        rdata += ' %5s' % spec[0] + ' %s' % val + eol
     #    i += 1
 
+    self.mode = mode
     return strs
 
 def get_seg_register(self):
@@ -207,12 +211,17 @@ def get_seg_register(self):
     return None
 
 def get_ip_register(self):
-    if self.mode == 616:
+    if self.mode == '32b':
         if 'eip' in self.regs:
             return self.regs['eip']
-    elif self.mode == 1072:
+    elif self.mode == '64b':
         if 'rip' in self.regs:
             return self.regs['rip']
+    elif self.mode == '16b':
+        if 'ip' in self.regs:
+            return self.regs['ip']
+    else:
+        Log.write('*** get_ip_register: unknown mode [%s] ***\n' % self.mode)
     return None
 
 
@@ -296,11 +305,19 @@ _gdt_els = (
                      DSVAL(0x1f,0x0a,' \rres\t'), DSVAL(0x1f,0x0d,' \rres\t'),
                      DSVAL(0x80,0x00,' \a!pres\t'),
                      # system types
-                     DSVAL(0x1d,0x01,' tss16'),  DSVAL(0x1f,0x02,' ldt'),
-                     DSVAL(0x1f,0x04,' call16'), DSVAL(0x1f,0x05,' taskg'),
-                     DSVAL(0x1f,0x06,' intr16'), DSVAL(0x1f,0x07,' trap16'),
-                     DSVAL(0x1d,0x09,' tss'),    DSVAL(0x1f,0x0c,' call'),
-                     DSVAL(0x1f,0x0e,' intr'),   DSVAL(0x1f,0x0f,' trap'),
+                     #DSVAL(0x1d,0x01,' tss16'),  DSVAL(0x1f,0x02,' ldt'),
+                     #DSVAL(0x1f,0x04,' call16'), DSVAL(0x1f,0x05,' taskg'),
+                     #DSVAL(0x1f,0x06,' intr16'), DSVAL(0x1f,0x07,' trap16'),
+                     #DSVAL(0x1d,0x09,' tss'),    DSVAL(0x1f,0x0c,' call'),
+                     #DSVAL(0x1f,0x0e,' intr'),   DSVAL(0x1f,0x0f,' trap'),
+
+                     DSVAL(0x1f,0x01,' tss16'),    DSVAL(0x1f,0x02,' ldt'),
+                     DSVAL(0x1f,0x03,' tss16(b)'), DSVAL(0x1f,0x04,' call16'),
+                     DSVAL(0x1f,0x05,' taskg'),    DSVAL(0x1f,0x06,' intr16'),
+                     DSVAL(0x1f,0x07,' trap16'),   DSVAL(0x1f,0x09,' tss'),
+                     DSVAL(0x1f,0x0b,' tss(b)'),   DSVAL(0x1f,0x0c,' call'),
+                     DSVAL(0x1f,0x0e,' intr'),     DSVAL(0x1f,0x0f,' trap'),
+
                      # non system types
                      DSVAL(0x18,0x10,' data'), DSVAL(0x18,0x18,' code'),
                      DSVAL(0x1a,0x10,' r/o'),  DSVAL(0x1a,0x12,' r/w'),

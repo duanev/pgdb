@@ -1,0 +1,121 @@
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+code             0x0000000040080000 0x0000000000004000
+data             0x0000000040084000 0x0000000000004000
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+
+code            0x0000000040080000      0x5ac
+ crt.o(.text)
+ .text          0x0000000040080000       0xc0 crt.o
+                0x0000000040080000                crt
+                0x0000000040080018                con_init
+                0x0000000040080044                con_puts
+                0x0000000040080094                con_getc
+ *.o(.text)
+ .text          0x00000000400800c0      0x204 pcie.o
+                0x00000000400800c0                pci_scan
+                0x0000000040080284                main
+ .text          0x00000000400802c4      0x2e8 lib.o
+                0x00000000400802c4                printf
+
+.rodata.str1.8  0x00000000400805b0       0xb0
+ .rodata.str1.8
+                0x00000000400805b0       0xa5 pcie.o
+ *fill*         0x0000000040080655        0x3 
+ .rodata.str1.8
+                0x0000000040080658        0x8 lib.o
+                                          0x7 (size before relaxing)
+
+.eh_frame       0x0000000040080660       0x90
+ .eh_frame      0x0000000040080660       0x70 pcie.o
+ .eh_frame      0x00000000400806d0       0x20 lib.o
+                                         0x38 (size before relaxing)
+
+.rodata         0x00000000400806f0       0x10
+ .rodata        0x00000000400806f0       0x10 lib.o
+
+.iplt           0x0000000040080700        0x0
+ .iplt          0x0000000040080700        0x0 crt.o
+
+.igot.plt       0x0000000040080700        0x0
+ .igot.plt      0x0000000040080700        0x0 crt.o
+
+.rela.dyn       0x0000000040080700        0x0
+ .rela.iplt     0x0000000040080700        0x0 crt.o
+ .rela.text     0x0000000040080700        0x0 crt.o
+
+data            0x0000000040084000     0x1000
+ *.o(.data)
+ .data          0x0000000040084000       0x13 crt.o
+ .data          0x0000000040084013        0x0 pcie.o
+ .data          0x0000000040084013        0x0 lib.o
+ *.o(.bss)
+ .bss           0x0000000040084013        0x0 crt.o
+ .bss           0x0000000040084013        0x0 pcie.o
+ *fill*         0x0000000040084013        0x5 
+ .bss           0x0000000040084018      0x400 lib.o
+ *(COMMON)
+                0x0000000040084800                . = ALIGN (0x800)
+ *fill*         0x0000000040084418      0x3e8 
+                0x0000000040084800                _stack_end = .
+                0x0000000040085000                . = ALIGN (0x1000)
+ *fill*         0x0000000040084800      0x800 
+                0x0000000040085000                _stack_start = .
+LOAD pcie.o
+LOAD lib.o
+OUTPUT(pcie.elf elf64-littleaarch64)
+
+.debug_line     0x0000000000000000      0x48b
+ .debug_line    0x0000000000000000       0x5f crt.o
+ .debug_line    0x000000000000005f      0x1cc pcie.o
+ .debug_line    0x000000000000022b      0x260 lib.o
+
+.debug_info     0x0000000000000000      0x7c4
+ .debug_info    0x0000000000000000       0x2e crt.o
+ .debug_info    0x000000000000002e      0x5a6 pcie.o
+ .debug_info    0x00000000000005d4      0x1f0 lib.o
+
+.debug_abbrev   0x0000000000000000      0x2fa
+ .debug_abbrev  0x0000000000000000       0x14 crt.o
+ .debug_abbrev  0x0000000000000014      0x1a9 pcie.o
+ .debug_abbrev  0x00000000000001bd      0x13d lib.o
+
+.debug_aranges  0x0000000000000000       0x90
+ .debug_aranges
+                0x0000000000000000       0x30 crt.o
+ .debug_aranges
+                0x0000000000000030       0x30 pcie.o
+ .debug_aranges
+                0x0000000000000060       0x30 lib.o
+
+.debug_str      0x0000000000000000      0x2f3
+ .debug_str     0x0000000000000000       0x45 crt.o
+ .debug_str     0x0000000000000045      0x254 pcie.o
+                                        0x2a9 (size before relaxing)
+ .debug_str     0x0000000000000299       0x5a lib.o
+                                         0xea (size before relaxing)
+
+.debug_loc      0x0000000000000000      0x829
+ .debug_loc     0x0000000000000000      0x335 pcie.o
+ .debug_loc     0x0000000000000335      0x4f4 lib.o
+
+.debug_ranges   0x0000000000000000      0x110
+ .debug_ranges  0x0000000000000000       0xa0 pcie.o
+ .debug_ranges  0x00000000000000a0       0x70 lib.o
+
+.comment        0x0000000000000000       0x11
+ .comment       0x0000000000000000       0x11 pcie.o
+                                         0x12 (size before relaxing)
+ .comment       0x0000000000000011       0x12 lib.o
+
+.note.GNU-stack
+                0x0000000000000000        0x0
+ .note.GNU-stack
+                0x0000000000000000        0x0 pcie.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 lib.o

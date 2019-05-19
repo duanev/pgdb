@@ -1,0 +1,65 @@
+
+crt.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <crt>:
+   0:	90000000 	adrp	x0, 0 <_stack_start>
+   4:	9100001f 	mov	sp, x0
+   8:	94000000 	bl	0 <main>
+   c:	58000560 	ldr	x0, b8 <uart_addr+0x8>
+  10:	94000000 	bl	44 <con_puts>
+  14:	14000000 	b	14 <crt+0x14>
+
+0000000000000018 <con_init>:
+  18:	580004c0 	ldr	x0, b0 <uart_addr>
+  1c:	b900301f 	str	wzr, [x0, #48]
+  20:	b900041f 	str	wzr, [x0, #4]
+  24:	b900001f 	str	wzr, [x0]
+  28:	52800041 	mov	w1, #0x2                   	// #2
+  2c:	b9002401 	str	w1, [x0, #36]
+  30:	52800161 	mov	w1, #0xb                   	// #11
+  34:	b9002801 	str	w1, [x0, #40]
+  38:	52806021 	mov	w1, #0x301                 	// #769
+  3c:	b9003001 	str	w1, [x0, #48]
+  40:	d65f03c0 	ret
+
+0000000000000044 <con_puts>:
+  44:	58000361 	ldr	x1, b0 <uart_addr>
+
+0000000000000048 <loop>:
+  48:	b9401823 	ldr	w3, [x1, #24]
+  4c:	52800504 	mov	w4, #0x28                  	// #40
+  50:	0a040063 	and	w3, w3, w4
+  54:	35ffffa3 	cbnz	w3, 48 <loop>
+  58:	39400002 	ldrb	w2, [x0]
+  5c:	f100005f 	cmp	x2, #0x0
+  60:	54000180 	b.eq	90 <done>  // b.none
+  64:	7100285f 	cmp	w2, #0xa
+  68:	540000e1 	b.ne	84 <loop+0x3c>  // b.any
+  6c:	528001a3 	mov	w3, #0xd                   	// #13
+  70:	f9000023 	str	x3, [x1]
+  74:	b9401823 	ldr	w3, [x1, #24]
+  78:	52800504 	mov	w4, #0x28                  	// #40
+  7c:	0a040063 	and	w3, w3, w4
+  80:	35ffffa3 	cbnz	w3, 74 <loop+0x2c>
+  84:	f9000022 	str	x2, [x1]
+  88:	91000400 	add	x0, x0, #0x1
+  8c:	17ffffef 	b	48 <loop>
+
+0000000000000090 <done>:
+  90:	d65f03c0 	ret
+
+0000000000000094 <con_getc>:
+  94:	580000e1 	ldr	x1, b0 <uart_addr>
+  98:	b9401822 	ldr	w2, [x1, #24]
+  9c:	121c0042 	and	w2, w2, #0x10
+  a0:	35ffffc2 	cbnz	w2, 98 <con_getc+0x4>
+  a4:	b9400020 	ldr	w0, [x1]
+  a8:	d65f03c0 	ret
+  ac:	d503201f 	nop
+
+00000000000000b0 <uart_addr>:
+  b0:	09000000 	.word	0x09000000
+	...
