@@ -14,7 +14,6 @@ all: pcie.bin
 
 pcie.elf: pcie.ld crt.o $(OBJS)
 	$(CROSS_COMPILE)-ld -T pcie.ld $(OBJS) -Map pcie.map -o pcie.elf
-	$(CROSS_COMPILE)-objdump -S $@ > pcie.lst
 
 pcie.bin: pcie.elf
 	$(CROSS_COMPILE)-objcopy -O binary pcie.elf pcie.bin
