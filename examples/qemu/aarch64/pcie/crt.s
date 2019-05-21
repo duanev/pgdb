@@ -9,6 +9,11 @@
 
     .global crt
 crt:
+    ldr     x0, =exc_table
+    msr     vbar_el1, x0
+
+    //svc     #0                // test exceptions
+
     adrp    x0, _stack_start
     mov     sp, x0
     //bl      con_init            // not needed for qemu
@@ -100,6 +105,39 @@ con_getc:
     cbnz w2, 1b
     ldr  w0, [x1, UART_DR]
     ret
+
+// ---- exception vectors ------------------
+
+    .macro vector label
+    .align 7
+    \label:
+    mrs x16, esr_el1        // exception syndrome reg
+    mrs x17, elr_el1        // exception link reg
+    mrs x18, far_el1        // fault address reg
+    b   \label
+    .endm
+
+    .align 9
+exc_table:
+    vector sp0_sync
+    vector sp0_irq
+    vector sp0_fiq
+    vector sp0_serror
+    vector spx_sync
+    vector spx_irq
+    vector spx_fiq
+    vector spx_serror
+    vector el64_sync
+    vector el64_irq
+    vector el64_fiq
+    vector el64_serror
+    vector el32_sync
+    vector el32_irq
+    vector el32_fiq
+    vector el32_serror
+
+
+// ---- static data ------------------------
 
     .align 4
 uart_addr:
