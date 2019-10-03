@@ -1,0 +1,305 @@
+
+smp.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <thd>:
+    // we'll see how long that lasts ...
+}
+
+int
+thd(struct thread * th)
+{
+   0:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+   4:	910003fd 	mov	x29, sp
+   8:	f9000bf3 	str	x19, [sp, #16]
+   c:	aa0003f3 	mov	x19, x0
+
+static inline u64
+armv8_get_tp(void)
+{
+    u64 tp;
+    asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
+  10:	d53bd042 	mrs	x2, tpidr_el0
+// where the thread local storage areas are defined in nui.ld, and
+// will only work after the tp has been established (in smp_init).
+static inline int
+core_id(void)
+{
+    return (armv8_get_tp() - TLS(0)) / (TLS(1) - TLS(0));
+  14:	90000000 	adrp	x0, 0 <_tls0>
+  18:	91000001 	add	x1, x0, #0x0
+  1c:	cb010042 	sub	x2, x2, x1
+  20:	90000000 	adrp	x0, 0 <_tls1>
+  24:	91000000 	add	x0, x0, #0x0
+  28:	cb010000 	sub	x0, x0, x1
+    printf("thread %d: cpu(%d) arg(%x)\n", th->thno, core_id(), th->arg0);
+  2c:	f9400e63 	ldr	x3, [x19, #24]
+  30:	9ac00842 	udiv	x2, x2, x0
+  34:	b9401261 	ldr	w1, [x19, #16]
+  38:	90000000 	adrp	x0, 0 <thd>
+  3c:	91000000 	add	x0, x0, #0x0
+  40:	94000000 	bl	0 <printf>
+
+//#if 0
+    if (th->thno == 1) {
+  44:	b9401260 	ldr	w0, [x19, #16]
+  48:	7100041f 	cmp	w0, #0x1
+  4c:	54000080 	b.eq	5c <thd+0x5c>  // b.none
+        printf("forcing a memory access exception on thread 1 ...\n");
+        int * x = (void *)-1;
+        printf("%x\n", *x);
+    }
+//#endif
+}
+  50:	f9400bf3 	ldr	x19, [sp, #16]
+  54:	a8c27bfd 	ldp	x29, x30, [sp], #32
+  58:	d65f03c0 	ret
+        printf("forcing a memory access exception on thread 1 ...\n");
+  5c:	90000000 	adrp	x0, 0 <thd>
+  60:	91000000 	add	x0, x0, #0x0
+  64:	94000000 	bl	0 <printf>
+        printf("%x\n", *x);
+  68:	92800000 	mov	x0, #0xffffffffffffffff    	// #-1
+  6c:	39400002 	ldrb	w2, [x0]
+  70:	39400401 	ldrb	w1, [x0, #1]
+  74:	aa012042 	orr	x2, x2, x1, lsl #8
+  78:	39400801 	ldrb	w1, [x0, #2]
+  7c:	aa014041 	orr	x1, x2, x1, lsl #16
+  80:	39400c00 	ldrb	w0, [x0, #3]
+  84:	2a006021 	orr	w1, w1, w0, lsl #24
+  88:	90000000 	adrp	x0, 0 <thd>
+  8c:	91000000 	add	x0, x0, #0x0
+  90:	94000000 	bl	0 <printf>
+  94:	17ffffef 	b	50 <thd+0x50>
+
+0000000000000098 <smp_newcpu>:
+{
+  98:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+  9c:	910003fd 	mov	x29, sp
+  a0:	f9000fe0 	str	x0, [sp, #24]
+    asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
+  a4:	d53bd040 	mrs	x0, tpidr_el0
+    if (armv8_get_tp() == 0) {
+  a8:	b5000280 	cbnz	x0, f8 <smp_newcpu+0x60>
+        switch (th->thno) {
+  ac:	f9400fe0 	ldr	x0, [sp, #24]
+  b0:	b9401000 	ldr	w0, [x0, #16]
+  b4:	7100101f 	cmp	w0, #0x4
+  b8:	54000620 	b.eq	17c <smp_newcpu+0xe4>  // b.none
+  bc:	7100101f 	cmp	w0, #0x4
+  c0:	540003ac 	b.gt	134 <smp_newcpu+0x9c>
+  c4:	7100081f 	cmp	w0, #0x2
+  c8:	54000520 	b.eq	16c <smp_newcpu+0xd4>  // b.none
+  cc:	71000c1f 	cmp	w0, #0x3
+  d0:	540000a1 	b.ne	e4 <smp_newcpu+0x4c>  // b.any
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+  d4:	90000000 	adrp	x0, 0 <_tls3>
+  d8:	91000000 	add	x0, x0, #0x0
+  dc:	d51bd040 	msr	tpidr_el0, x0
+}
+  e0:	14000006 	b	f8 <smp_newcpu+0x60>
+        switch (th->thno) {
+  e4:	7100041f 	cmp	w0, #0x1
+  e8:	54000081 	b.ne	f8 <smp_newcpu+0x60>  // b.any
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+  ec:	90000000 	adrp	x0, 0 <_tls1>
+  f0:	91000000 	add	x0, x0, #0x0
+  f4:	d51bd040 	msr	tpidr_el0, x0
+    asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
+  f8:	d5384242 	mrs	x2, currentel
+  fc:	d342fc42 	lsr	x2, x2, #2
+    asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
+ 100:	d53bd043 	mrs	x3, tpidr_el0
+    printf("smp%d: el%d tls(%x) sp(%x)\n", th->thno, armv8_get_el(), armv8_get_tp(), &th);
+ 104:	910063e4 	add	x4, sp, #0x18
+ 108:	f9400fe0 	ldr	x0, [sp, #24]
+ 10c:	b9401001 	ldr	w1, [x0, #16]
+ 110:	90000000 	adrp	x0, 0 <thd>
+ 114:	91000000 	add	x0, x0, #0x0
+ 118:	94000000 	bl	0 <printf>
+    th->func(th);
+ 11c:	f9400fe0 	ldr	x0, [sp, #24]
+ 120:	f9400401 	ldr	x1, [x0, #8]
+ 124:	d63f0020 	blr	x1
+    asm volatile("wfi");        // low power sleep
+ 128:	d503207f 	wfi
+};
+ 12c:	a8c27bfd 	ldp	x29, x30, [sp], #32
+ 130:	d65f03c0 	ret
+        switch (th->thno) {
+ 134:	7100181f 	cmp	w0, #0x6
+ 138:	540002a0 	b.eq	18c <smp_newcpu+0xf4>  // b.none
+ 13c:	71001c1f 	cmp	w0, #0x7
+ 140:	540000a1 	b.ne	154 <smp_newcpu+0xbc>  // b.any
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+ 144:	90000000 	adrp	x0, 0 <_tls7>
+ 148:	91000000 	add	x0, x0, #0x0
+ 14c:	d51bd040 	msr	tpidr_el0, x0
+}
+ 150:	17ffffea 	b	f8 <smp_newcpu+0x60>
+        switch (th->thno) {
+ 154:	7100141f 	cmp	w0, #0x5
+ 158:	54fffd01 	b.ne	f8 <smp_newcpu+0x60>  // b.any
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+ 15c:	90000000 	adrp	x0, 0 <_tls5>
+ 160:	91000000 	add	x0, x0, #0x0
+ 164:	d51bd040 	msr	tpidr_el0, x0
+}
+ 168:	17ffffe4 	b	f8 <smp_newcpu+0x60>
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+ 16c:	90000000 	adrp	x0, 0 <_tls2>
+ 170:	91000000 	add	x0, x0, #0x0
+ 174:	d51bd040 	msr	tpidr_el0, x0
+}
+ 178:	17ffffe0 	b	f8 <smp_newcpu+0x60>
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+ 17c:	90000000 	adrp	x0, 0 <_tls4>
+ 180:	91000000 	add	x0, x0, #0x0
+ 184:	d51bd040 	msr	tpidr_el0, x0
+}
+ 188:	17ffffdc 	b	f8 <smp_newcpu+0x60>
+    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
+ 18c:	90000000 	adrp	x0, 0 <_tls6>
+ 190:	91000000 	add	x0, x0, #0x0
+ 194:	d51bd040 	msr	tpidr_el0, x0
+}
+ 198:	17ffffd8 	b	f8 <smp_newcpu+0x60>
+
+000000000000019c <smp_start_thread>:
+{
+ 19c:	2a0003e4 	mov	w4, w0
+    if (cpu < 0)
+ 1a0:	36f80100 	tbz	w0, #31, 1c0 <smp_start_thread+0x24>
+        cpu = atomic_fetch_inc(smp_next_cpu);
+ 1a4:	90000000 	adrp	x0, 0 <thd>
+ 1a8:	91000000 	add	x0, x0, #0x0
+ 1ac:	885f7c04 	ldxr	w4, [x0]
+ 1b0:	11000483 	add	w3, w4, #0x1
+ 1b4:	8805fc03 	stlxr	w5, w3, [x0]
+ 1b8:	35ffffa5 	cbnz	w5, 1ac <smp_start_thread+0x10>
+ 1bc:	d5033bbf 	dmb	ish
+    struct thread * th = Threads + cpu;
+ 1c0:	937b7c83 	sbfiz	x3, x4, #5, #32
+ 1c4:	90000000 	adrp	x0, 100 <smp_newcpu+0x68>
+ 1c8:	91000000 	add	x0, x0, #0x0
+ 1cc:	8b000065 	add	x5, x3, x0
+    switch (cpu) {
+ 1d0:	7100109f 	cmp	w4, #0x4
+ 1d4:	540005c0 	b.eq	28c <smp_start_thread+0xf0>  // b.none
+ 1d8:	540001ec 	b.gt	214 <smp_start_thread+0x78>
+ 1dc:	7100089f 	cmp	w4, #0x2
+ 1e0:	540004e0 	b.eq	27c <smp_start_thread+0xe0>  // b.none
+ 1e4:	540000ad 	b.le	1f8 <smp_start_thread+0x5c>
+    case 3:  th->stack_start = &_stack3_start;  break;
+ 1e8:	90000006 	adrp	x6, 0 <_stack3_start>
+ 1ec:	910000c6 	add	x6, x6, #0x0
+ 1f0:	f8206866 	str	x6, [x3, x0]
+ 1f4:	14000019 	b	258 <smp_start_thread+0xbc>
+    switch (cpu) {
+ 1f8:	340002a4 	cbz	w4, 24c <smp_start_thread+0xb0>
+ 1fc:	7100049f 	cmp	w4, #0x1
+ 200:	540002c1 	b.ne	258 <smp_start_thread+0xbc>  // b.any
+    case 1:  th->stack_start = &_stack1_start;  break;
+ 204:	90000006 	adrp	x6, 0 <_stack1_start>
+ 208:	910000c6 	add	x6, x6, #0x0
+ 20c:	f8206866 	str	x6, [x3, x0]
+ 210:	14000012 	b	258 <smp_start_thread+0xbc>
+    switch (cpu) {
+ 214:	7100189f 	cmp	w4, #0x6
+ 218:	54000420 	b.eq	29c <smp_start_thread+0x100>  // b.none
+ 21c:	71001c9f 	cmp	w4, #0x7
+ 220:	540000a1 	b.ne	234 <smp_start_thread+0x98>  // b.any
+    case 7:  th->stack_start = &_stack7_start;  break;
+ 224:	90000006 	adrp	x6, 0 <_stack7_start>
+ 228:	910000c6 	add	x6, x6, #0x0
+ 22c:	f8206866 	str	x6, [x3, x0]
+ 230:	1400000a 	b	258 <smp_start_thread+0xbc>
+    switch (cpu) {
+ 234:	7100149f 	cmp	w4, #0x5
+ 238:	54000101 	b.ne	258 <smp_start_thread+0xbc>  // b.any
+    case 5:  th->stack_start = &_stack5_start;  break;
+ 23c:	90000006 	adrp	x6, 0 <_stack5_start>
+ 240:	910000c6 	add	x6, x6, #0x0
+ 244:	f8206866 	str	x6, [x3, x0]
+ 248:	14000004 	b	258 <smp_start_thread+0xbc>
+    case 0:  th->stack_start = &_stack0_start;  break;
+ 24c:	90000006 	adrp	x6, 0 <_stack0_start>
+ 250:	910000c6 	add	x6, x6, #0x0
+ 254:	f8206866 	str	x6, [x3, x0]
+    th->func = func;
+ 258:	f90004a1 	str	x1, [x5, #8]
+    th->thno = cpu;
+ 25c:	b90010a4 	str	w4, [x5, #16]
+    th->arg0 = arg0;
+ 260:	f9000ca2 	str	x2, [x5, #24]
+    asm volatile (
+ 264:	580005a0 	ldr	x0, 318 <smp_init+0x6c>
+ 268:	aa0403e1 	mov	x1, x4
+ 26c:	580005a2 	ldr	x2, 320 <smp_init+0x74>
+ 270:	aa0503e3 	mov	x3, x5
+ 274:	d4000002 	hvc	#0x0
+}
+ 278:	d65f03c0 	ret
+    case 2:  th->stack_start = &_stack2_start;  break;
+ 27c:	90000006 	adrp	x6, 0 <_stack2_start>
+ 280:	910000c6 	add	x6, x6, #0x0
+ 284:	f8206866 	str	x6, [x3, x0]
+ 288:	17fffff4 	b	258 <smp_start_thread+0xbc>
+    case 4:  th->stack_start = &_stack4_start;  break;
+ 28c:	90000006 	adrp	x6, 0 <_stack4_start>
+ 290:	910000c6 	add	x6, x6, #0x0
+ 294:	f8206866 	str	x6, [x3, x0]
+ 298:	17fffff0 	b	258 <smp_start_thread+0xbc>
+    case 6:  th->stack_start = &_stack6_start;  break;
+ 29c:	90000006 	adrp	x6, 0 <_stack6_start>
+ 2a0:	910000c6 	add	x6, x6, #0x0
+ 2a4:	f8206866 	str	x6, [x3, x0]
+ 2a8:	17ffffec 	b	258 <smp_start_thread+0xbc>
+
+00000000000002ac <smp_init>:
+
+void
+smp_init(void)
+{
+ 2ac:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
+ 2b0:	910003fd 	mov	x29, sp
+ 2b4:	a90153f3 	stp	x19, x20, [sp, #16]
+ 2b8:	a9025bf5 	stp	x21, x22, [sp, #32]
+    // smp_start_thread() with a zero or greater cpu number does not yet
+    // restart a cpu on the new thread ... until then smp_start_thread()
+    // must be called from main() with a -1
+    int n = 0;
+    do {
+        if (n++ >= MAX_CPUS-1) break;
+ 2bc:	52800033 	mov	w19, #0x1                   	// #1
+    } while (smp_start_thread(-1, thd, (void *)((n << 4) | (u64)0xa)) == 0);
+ 2c0:	52800156 	mov	w22, #0xa                   	// #10
+ 2c4:	90000014 	adrp	x20, 0 <thd>
+ 2c8:	91000294 	add	x20, x20, #0x0
+ 2cc:	12800015 	mov	w21, #0xffffffff            	// #-1
+ 2d0:	2a1312c2 	orr	w2, w22, w19, lsl #4
+ 2d4:	93407c42 	sxtw	x2, w2
+ 2d8:	aa1403e1 	mov	x1, x20
+ 2dc:	2a1503e0 	mov	w0, w21
+ 2e0:	94000000 	bl	19c <smp_start_thread>
+ 2e4:	35000080 	cbnz	w0, 2f4 <smp_init+0x48>
+        if (n++ >= MAX_CPUS-1) break;
+ 2e8:	11000673 	add	w19, w19, #0x1
+ 2ec:	7100227f 	cmp	w19, #0x8
+ 2f0:	54ffff01 	b.ne	2d0 <smp_init+0x24>  // b.any
+
+    printf("smp_init complete %d cpus\n", n);
+ 2f4:	2a1303e1 	mov	w1, w19
+ 2f8:	90000000 	adrp	x0, 0 <thd>
+ 2fc:	91000000 	add	x0, x0, #0x0
+ 300:	94000000 	bl	0 <printf>
+}
+ 304:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 308:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 30c:	a8c37bfd 	ldp	x29, x30, [sp], #48
+ 310:	d65f03c0 	ret
+ 314:	00000000 	.inst	0x00000000 ; undefined
+ 318:	c4000003 	.word	0xc4000003
+	...

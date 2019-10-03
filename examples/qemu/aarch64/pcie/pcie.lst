@@ -1,207 +1,1224 @@
 
-pcie.o:     file format elf64-littleaarch64
+pcie.elf:     file format elf64-littleaarch64
 
 
-Disassembly of section .text:
+Disassembly of section code:
 
-0000000000000000 <pci_scan>:
+0000000040080000 <crt>:
+
+.section .text
+
+    .global crt
+crt:
+    ldr     x0, =exc_table
+    40080000:	58004cc0 	ldr	x0, 40080998 <uart_addr+0x8>
+    msr     vbar_el1, x0
+    40080004:	d518c000 	msr	vbar_el1, x0
+
+    //svc     #0                // test exceptions
+
+    adrp    x0, _stack_start
+    40080008:	b0000020 	adrp	x0, 40085000 <_stack_start>
+    mov     sp, x0
+    4008000c:	9100001f 	mov	sp, x0
+    //bl      con_init            // not needed for qemu
+    bl      main
+    40080010:	940002d7 	bl	40080b6c <main>
+    ldr     x0, =eop_msg
+    40080014:	58004c60 	ldr	x0, 400809a0 <uart_addr+0x10>
+    bl      con_puts
+    40080018:	9400000d 	bl	4008004c <con_puts>
+    b       .                   // hang
+    4008001c:	14000000 	b	4008001c <crt+0x1c>
+
+0000000040080020 <con_init>:
+        cbnz    w3, 1b
+    .endm
+
+    .global con_init
+con_init:
+    ldr  x0, uart_addr
+    40080020:	58004b80 	ldr	x0, 40080990 <uart_addr>
+    str  wzr, [x0, UART_CR]
+    40080024:	b900301f 	str	wzr, [x0, #48]
+    str  wzr, [x0, UART_ECR]
+    40080028:	b900041f 	str	wzr, [x0, #4]
+    str  wzr, [x0, UART_DR]
+    4008002c:	b900001f 	str	wzr, [x0]
+    mov  w1,  BAUD_I
+    40080030:	52800041 	mov	w1, #0x2                   	// #2
+    str  w1,  [x0, UART_IB]
+    40080034:	b9002401 	str	w1, [x0, #36]
+    mov  w1,  BAUD_F
+    40080038:	52800161 	mov	w1, #0xb                   	// #11
+    str  w1,  [x0, UART_FB]
+    4008003c:	b9002801 	str	w1, [x0, #40]
+    mov  w1,  0x301
+    40080040:	52806021 	mov	w1, #0x301                 	// #769
+    str  w1,  [x0, UART_CR]
+    40080044:	b9003001 	str	w1, [x0, #48]
+    ret
+    40080048:	d65f03c0 	ret
+
+000000004008004c <con_puts>:
+
+    .global con_puts
+con_puts:
+    ldr  x1, uart_addr
+    4008004c:	58004a21 	ldr	x1, 40080990 <uart_addr>
+
+0000000040080050 <loop>:
+loop:
+    wait_for_tx_ready
+    40080050:	b9401823 	ldr	w3, [x1, #24]
+    40080054:	52800504 	mov	w4, #0x28                  	// #40
+    40080058:	0a040063 	and	w3, w3, w4
+    4008005c:	35ffffa3 	cbnz	w3, 40080050 <loop>
+    ldrb w2, [x0]
+    40080060:	39400002 	ldrb	w2, [x0]
+    cmp  x2, #0
+    40080064:	f100005f 	cmp	x2, #0x0
+    b.eq done
+    40080068:	54000180 	b.eq	40080098 <done>  // b.none
+    cmp  w2, ASCII_NL
+    4008006c:	7100285f 	cmp	w2, #0xa
+    b.ne 2f
+    40080070:	540000e1 	b.ne	4008008c <loop+0x3c>  // b.any
+    mov  w3, ASCII_CR
+    40080074:	528001a3 	mov	w3, #0xd                   	// #13
+    str  x3, [x1]
+    40080078:	f9000023 	str	x3, [x1]
+    wait_for_tx_ready
+    4008007c:	b9401823 	ldr	w3, [x1, #24]
+    40080080:	52800504 	mov	w4, #0x28                  	// #40
+    40080084:	0a040063 	and	w3, w3, w4
+    40080088:	35ffffa3 	cbnz	w3, 4008007c <loop+0x2c>
+2:
+    str  x2, [x1]
+    4008008c:	f9000022 	str	x2, [x1]
+    add  x0, x0, #1
+    40080090:	91000400 	add	x0, x0, #0x1
+    b    loop
+    40080094:	17ffffef 	b	40080050 <loop>
+
+0000000040080098 <done>:
+done:
+    ret
+    40080098:	d65f03c0 	ret
+
+000000004008009c <con_getc>:
+
+    .global con_getc
+con_getc:
+    ldr  x1, uart_addr
+    4008009c:	580047a1 	ldr	x1, 40080990 <uart_addr>
+1:
+    ldr  w2, [x1, UART_FR]
+    400800a0:	b9401822 	ldr	w2, [x1, #24]
+    and  w2, w2, #FR_RXFE
+    400800a4:	121c0042 	and	w2, w2, #0x10
+    cbnz w2, 1b
+    400800a8:	35ffffc2 	cbnz	w2, 400800a0 <con_getc+0x4>
+    ldr  w0, [x1, UART_DR]
+    400800ac:	b9400020 	ldr	w0, [x1]
+    ret
+    400800b0:	d65f03c0 	ret
+    400800b4:	d503201f 	nop
+    400800b8:	d503201f 	nop
+    400800bc:	d503201f 	nop
+    400800c0:	d503201f 	nop
+    400800c4:	d503201f 	nop
+    400800c8:	d503201f 	nop
+    400800cc:	d503201f 	nop
+    400800d0:	d503201f 	nop
+    400800d4:	d503201f 	nop
+    400800d8:	d503201f 	nop
+    400800dc:	d503201f 	nop
+    400800e0:	d503201f 	nop
+    400800e4:	d503201f 	nop
+    400800e8:	d503201f 	nop
+    400800ec:	d503201f 	nop
+    400800f0:	d503201f 	nop
+    400800f4:	d503201f 	nop
+    400800f8:	d503201f 	nop
+    400800fc:	d503201f 	nop
+    40080100:	d503201f 	nop
+    40080104:	d503201f 	nop
+    40080108:	d503201f 	nop
+    4008010c:	d503201f 	nop
+    40080110:	d503201f 	nop
+    40080114:	d503201f 	nop
+    40080118:	d503201f 	nop
+    4008011c:	d503201f 	nop
+    40080120:	d503201f 	nop
+    40080124:	d503201f 	nop
+    40080128:	d503201f 	nop
+    4008012c:	d503201f 	nop
+    40080130:	d503201f 	nop
+    40080134:	d503201f 	nop
+    40080138:	d503201f 	nop
+    4008013c:	d503201f 	nop
+    40080140:	d503201f 	nop
+    40080144:	d503201f 	nop
+    40080148:	d503201f 	nop
+    4008014c:	d503201f 	nop
+    40080150:	d503201f 	nop
+    40080154:	d503201f 	nop
+    40080158:	d503201f 	nop
+    4008015c:	d503201f 	nop
+    40080160:	d503201f 	nop
+    40080164:	d503201f 	nop
+    40080168:	d503201f 	nop
+    4008016c:	d503201f 	nop
+    40080170:	d503201f 	nop
+    40080174:	d503201f 	nop
+    40080178:	d503201f 	nop
+    4008017c:	d503201f 	nop
+    40080180:	d503201f 	nop
+    40080184:	d503201f 	nop
+    40080188:	d503201f 	nop
+    4008018c:	d503201f 	nop
+    40080190:	d503201f 	nop
+    40080194:	d503201f 	nop
+    40080198:	d503201f 	nop
+    4008019c:	d503201f 	nop
+    400801a0:	d503201f 	nop
+    400801a4:	d503201f 	nop
+    400801a8:	d503201f 	nop
+    400801ac:	d503201f 	nop
+    400801b0:	d503201f 	nop
+    400801b4:	d503201f 	nop
+    400801b8:	d503201f 	nop
+    400801bc:	d503201f 	nop
+    400801c0:	d503201f 	nop
+    400801c4:	d503201f 	nop
+    400801c8:	d503201f 	nop
+    400801cc:	d503201f 	nop
+    400801d0:	d503201f 	nop
+    400801d4:	d503201f 	nop
+    400801d8:	d503201f 	nop
+    400801dc:	d503201f 	nop
+    400801e0:	d503201f 	nop
+    400801e4:	d503201f 	nop
+    400801e8:	d503201f 	nop
+    400801ec:	d503201f 	nop
+    400801f0:	d503201f 	nop
+    400801f4:	d503201f 	nop
+    400801f8:	d503201f 	nop
+    400801fc:	d503201f 	nop
+
+0000000040080200 <exc_table>:
+    b   \label
+    .endm
+
+    .align 9
+exc_table:
+    vector sp0_sync
+    40080200:	d5385210 	mrs	x16, esr_el1
+    40080204:	d5384031 	mrs	x17, elr_el1
+    40080208:	d5386012 	mrs	x18, far_el1
+    4008020c:	17fffffd 	b	40080200 <exc_table>
+    40080210:	d503201f 	nop
+    40080214:	d503201f 	nop
+    40080218:	d503201f 	nop
+    4008021c:	d503201f 	nop
+    40080220:	d503201f 	nop
+    40080224:	d503201f 	nop
+    40080228:	d503201f 	nop
+    4008022c:	d503201f 	nop
+    40080230:	d503201f 	nop
+    40080234:	d503201f 	nop
+    40080238:	d503201f 	nop
+    4008023c:	d503201f 	nop
+    40080240:	d503201f 	nop
+    40080244:	d503201f 	nop
+    40080248:	d503201f 	nop
+    4008024c:	d503201f 	nop
+    40080250:	d503201f 	nop
+    40080254:	d503201f 	nop
+    40080258:	d503201f 	nop
+    4008025c:	d503201f 	nop
+    40080260:	d503201f 	nop
+    40080264:	d503201f 	nop
+    40080268:	d503201f 	nop
+    4008026c:	d503201f 	nop
+    40080270:	d503201f 	nop
+    40080274:	d503201f 	nop
+    40080278:	d503201f 	nop
+    4008027c:	d503201f 	nop
+
+0000000040080280 <sp0_irq>:
+    vector sp0_irq
+    40080280:	d5385210 	mrs	x16, esr_el1
+    40080284:	d5384031 	mrs	x17, elr_el1
+    40080288:	d5386012 	mrs	x18, far_el1
+    4008028c:	17fffffd 	b	40080280 <sp0_irq>
+    40080290:	d503201f 	nop
+    40080294:	d503201f 	nop
+    40080298:	d503201f 	nop
+    4008029c:	d503201f 	nop
+    400802a0:	d503201f 	nop
+    400802a4:	d503201f 	nop
+    400802a8:	d503201f 	nop
+    400802ac:	d503201f 	nop
+    400802b0:	d503201f 	nop
+    400802b4:	d503201f 	nop
+    400802b8:	d503201f 	nop
+    400802bc:	d503201f 	nop
+    400802c0:	d503201f 	nop
+    400802c4:	d503201f 	nop
+    400802c8:	d503201f 	nop
+    400802cc:	d503201f 	nop
+    400802d0:	d503201f 	nop
+    400802d4:	d503201f 	nop
+    400802d8:	d503201f 	nop
+    400802dc:	d503201f 	nop
+    400802e0:	d503201f 	nop
+    400802e4:	d503201f 	nop
+    400802e8:	d503201f 	nop
+    400802ec:	d503201f 	nop
+    400802f0:	d503201f 	nop
+    400802f4:	d503201f 	nop
+    400802f8:	d503201f 	nop
+    400802fc:	d503201f 	nop
+
+0000000040080300 <sp0_fiq>:
+    vector sp0_fiq
+    40080300:	d5385210 	mrs	x16, esr_el1
+    40080304:	d5384031 	mrs	x17, elr_el1
+    40080308:	d5386012 	mrs	x18, far_el1
+    4008030c:	17fffffd 	b	40080300 <sp0_fiq>
+    40080310:	d503201f 	nop
+    40080314:	d503201f 	nop
+    40080318:	d503201f 	nop
+    4008031c:	d503201f 	nop
+    40080320:	d503201f 	nop
+    40080324:	d503201f 	nop
+    40080328:	d503201f 	nop
+    4008032c:	d503201f 	nop
+    40080330:	d503201f 	nop
+    40080334:	d503201f 	nop
+    40080338:	d503201f 	nop
+    4008033c:	d503201f 	nop
+    40080340:	d503201f 	nop
+    40080344:	d503201f 	nop
+    40080348:	d503201f 	nop
+    4008034c:	d503201f 	nop
+    40080350:	d503201f 	nop
+    40080354:	d503201f 	nop
+    40080358:	d503201f 	nop
+    4008035c:	d503201f 	nop
+    40080360:	d503201f 	nop
+    40080364:	d503201f 	nop
+    40080368:	d503201f 	nop
+    4008036c:	d503201f 	nop
+    40080370:	d503201f 	nop
+    40080374:	d503201f 	nop
+    40080378:	d503201f 	nop
+    4008037c:	d503201f 	nop
+
+0000000040080380 <sp0_serror>:
+    vector sp0_serror
+    40080380:	d5385210 	mrs	x16, esr_el1
+    40080384:	d5384031 	mrs	x17, elr_el1
+    40080388:	d5386012 	mrs	x18, far_el1
+    4008038c:	17fffffd 	b	40080380 <sp0_serror>
+    40080390:	d503201f 	nop
+    40080394:	d503201f 	nop
+    40080398:	d503201f 	nop
+    4008039c:	d503201f 	nop
+    400803a0:	d503201f 	nop
+    400803a4:	d503201f 	nop
+    400803a8:	d503201f 	nop
+    400803ac:	d503201f 	nop
+    400803b0:	d503201f 	nop
+    400803b4:	d503201f 	nop
+    400803b8:	d503201f 	nop
+    400803bc:	d503201f 	nop
+    400803c0:	d503201f 	nop
+    400803c4:	d503201f 	nop
+    400803c8:	d503201f 	nop
+    400803cc:	d503201f 	nop
+    400803d0:	d503201f 	nop
+    400803d4:	d503201f 	nop
+    400803d8:	d503201f 	nop
+    400803dc:	d503201f 	nop
+    400803e0:	d503201f 	nop
+    400803e4:	d503201f 	nop
+    400803e8:	d503201f 	nop
+    400803ec:	d503201f 	nop
+    400803f0:	d503201f 	nop
+    400803f4:	d503201f 	nop
+    400803f8:	d503201f 	nop
+    400803fc:	d503201f 	nop
+
+0000000040080400 <spx_sync>:
+    vector spx_sync
+    40080400:	d5385210 	mrs	x16, esr_el1
+    40080404:	d5384031 	mrs	x17, elr_el1
+    40080408:	d5386012 	mrs	x18, far_el1
+    4008040c:	17fffffd 	b	40080400 <spx_sync>
+    40080410:	d503201f 	nop
+    40080414:	d503201f 	nop
+    40080418:	d503201f 	nop
+    4008041c:	d503201f 	nop
+    40080420:	d503201f 	nop
+    40080424:	d503201f 	nop
+    40080428:	d503201f 	nop
+    4008042c:	d503201f 	nop
+    40080430:	d503201f 	nop
+    40080434:	d503201f 	nop
+    40080438:	d503201f 	nop
+    4008043c:	d503201f 	nop
+    40080440:	d503201f 	nop
+    40080444:	d503201f 	nop
+    40080448:	d503201f 	nop
+    4008044c:	d503201f 	nop
+    40080450:	d503201f 	nop
+    40080454:	d503201f 	nop
+    40080458:	d503201f 	nop
+    4008045c:	d503201f 	nop
+    40080460:	d503201f 	nop
+    40080464:	d503201f 	nop
+    40080468:	d503201f 	nop
+    4008046c:	d503201f 	nop
+    40080470:	d503201f 	nop
+    40080474:	d503201f 	nop
+    40080478:	d503201f 	nop
+    4008047c:	d503201f 	nop
+
+0000000040080480 <spx_irq>:
+    vector spx_irq
+    40080480:	d5385210 	mrs	x16, esr_el1
+    40080484:	d5384031 	mrs	x17, elr_el1
+    40080488:	d5386012 	mrs	x18, far_el1
+    4008048c:	17fffffd 	b	40080480 <spx_irq>
+    40080490:	d503201f 	nop
+    40080494:	d503201f 	nop
+    40080498:	d503201f 	nop
+    4008049c:	d503201f 	nop
+    400804a0:	d503201f 	nop
+    400804a4:	d503201f 	nop
+    400804a8:	d503201f 	nop
+    400804ac:	d503201f 	nop
+    400804b0:	d503201f 	nop
+    400804b4:	d503201f 	nop
+    400804b8:	d503201f 	nop
+    400804bc:	d503201f 	nop
+    400804c0:	d503201f 	nop
+    400804c4:	d503201f 	nop
+    400804c8:	d503201f 	nop
+    400804cc:	d503201f 	nop
+    400804d0:	d503201f 	nop
+    400804d4:	d503201f 	nop
+    400804d8:	d503201f 	nop
+    400804dc:	d503201f 	nop
+    400804e0:	d503201f 	nop
+    400804e4:	d503201f 	nop
+    400804e8:	d503201f 	nop
+    400804ec:	d503201f 	nop
+    400804f0:	d503201f 	nop
+    400804f4:	d503201f 	nop
+    400804f8:	d503201f 	nop
+    400804fc:	d503201f 	nop
+
+0000000040080500 <spx_fiq>:
+    vector spx_fiq
+    40080500:	d5385210 	mrs	x16, esr_el1
+    40080504:	d5384031 	mrs	x17, elr_el1
+    40080508:	d5386012 	mrs	x18, far_el1
+    4008050c:	17fffffd 	b	40080500 <spx_fiq>
+    40080510:	d503201f 	nop
+    40080514:	d503201f 	nop
+    40080518:	d503201f 	nop
+    4008051c:	d503201f 	nop
+    40080520:	d503201f 	nop
+    40080524:	d503201f 	nop
+    40080528:	d503201f 	nop
+    4008052c:	d503201f 	nop
+    40080530:	d503201f 	nop
+    40080534:	d503201f 	nop
+    40080538:	d503201f 	nop
+    4008053c:	d503201f 	nop
+    40080540:	d503201f 	nop
+    40080544:	d503201f 	nop
+    40080548:	d503201f 	nop
+    4008054c:	d503201f 	nop
+    40080550:	d503201f 	nop
+    40080554:	d503201f 	nop
+    40080558:	d503201f 	nop
+    4008055c:	d503201f 	nop
+    40080560:	d503201f 	nop
+    40080564:	d503201f 	nop
+    40080568:	d503201f 	nop
+    4008056c:	d503201f 	nop
+    40080570:	d503201f 	nop
+    40080574:	d503201f 	nop
+    40080578:	d503201f 	nop
+    4008057c:	d503201f 	nop
+
+0000000040080580 <spx_serror>:
+    vector spx_serror
+    40080580:	d5385210 	mrs	x16, esr_el1
+    40080584:	d5384031 	mrs	x17, elr_el1
+    40080588:	d5386012 	mrs	x18, far_el1
+    4008058c:	17fffffd 	b	40080580 <spx_serror>
+    40080590:	d503201f 	nop
+    40080594:	d503201f 	nop
+    40080598:	d503201f 	nop
+    4008059c:	d503201f 	nop
+    400805a0:	d503201f 	nop
+    400805a4:	d503201f 	nop
+    400805a8:	d503201f 	nop
+    400805ac:	d503201f 	nop
+    400805b0:	d503201f 	nop
+    400805b4:	d503201f 	nop
+    400805b8:	d503201f 	nop
+    400805bc:	d503201f 	nop
+    400805c0:	d503201f 	nop
+    400805c4:	d503201f 	nop
+    400805c8:	d503201f 	nop
+    400805cc:	d503201f 	nop
+    400805d0:	d503201f 	nop
+    400805d4:	d503201f 	nop
+    400805d8:	d503201f 	nop
+    400805dc:	d503201f 	nop
+    400805e0:	d503201f 	nop
+    400805e4:	d503201f 	nop
+    400805e8:	d503201f 	nop
+    400805ec:	d503201f 	nop
+    400805f0:	d503201f 	nop
+    400805f4:	d503201f 	nop
+    400805f8:	d503201f 	nop
+    400805fc:	d503201f 	nop
+
+0000000040080600 <el64_sync>:
+    vector el64_sync
+    40080600:	d5385210 	mrs	x16, esr_el1
+    40080604:	d5384031 	mrs	x17, elr_el1
+    40080608:	d5386012 	mrs	x18, far_el1
+    4008060c:	17fffffd 	b	40080600 <el64_sync>
+    40080610:	d503201f 	nop
+    40080614:	d503201f 	nop
+    40080618:	d503201f 	nop
+    4008061c:	d503201f 	nop
+    40080620:	d503201f 	nop
+    40080624:	d503201f 	nop
+    40080628:	d503201f 	nop
+    4008062c:	d503201f 	nop
+    40080630:	d503201f 	nop
+    40080634:	d503201f 	nop
+    40080638:	d503201f 	nop
+    4008063c:	d503201f 	nop
+    40080640:	d503201f 	nop
+    40080644:	d503201f 	nop
+    40080648:	d503201f 	nop
+    4008064c:	d503201f 	nop
+    40080650:	d503201f 	nop
+    40080654:	d503201f 	nop
+    40080658:	d503201f 	nop
+    4008065c:	d503201f 	nop
+    40080660:	d503201f 	nop
+    40080664:	d503201f 	nop
+    40080668:	d503201f 	nop
+    4008066c:	d503201f 	nop
+    40080670:	d503201f 	nop
+    40080674:	d503201f 	nop
+    40080678:	d503201f 	nop
+    4008067c:	d503201f 	nop
+
+0000000040080680 <el64_irq>:
+    vector el64_irq
+    40080680:	d5385210 	mrs	x16, esr_el1
+    40080684:	d5384031 	mrs	x17, elr_el1
+    40080688:	d5386012 	mrs	x18, far_el1
+    4008068c:	17fffffd 	b	40080680 <el64_irq>
+    40080690:	d503201f 	nop
+    40080694:	d503201f 	nop
+    40080698:	d503201f 	nop
+    4008069c:	d503201f 	nop
+    400806a0:	d503201f 	nop
+    400806a4:	d503201f 	nop
+    400806a8:	d503201f 	nop
+    400806ac:	d503201f 	nop
+    400806b0:	d503201f 	nop
+    400806b4:	d503201f 	nop
+    400806b8:	d503201f 	nop
+    400806bc:	d503201f 	nop
+    400806c0:	d503201f 	nop
+    400806c4:	d503201f 	nop
+    400806c8:	d503201f 	nop
+    400806cc:	d503201f 	nop
+    400806d0:	d503201f 	nop
+    400806d4:	d503201f 	nop
+    400806d8:	d503201f 	nop
+    400806dc:	d503201f 	nop
+    400806e0:	d503201f 	nop
+    400806e4:	d503201f 	nop
+    400806e8:	d503201f 	nop
+    400806ec:	d503201f 	nop
+    400806f0:	d503201f 	nop
+    400806f4:	d503201f 	nop
+    400806f8:	d503201f 	nop
+    400806fc:	d503201f 	nop
+
+0000000040080700 <el64_fiq>:
+    vector el64_fiq
+    40080700:	d5385210 	mrs	x16, esr_el1
+    40080704:	d5384031 	mrs	x17, elr_el1
+    40080708:	d5386012 	mrs	x18, far_el1
+    4008070c:	17fffffd 	b	40080700 <el64_fiq>
+    40080710:	d503201f 	nop
+    40080714:	d503201f 	nop
+    40080718:	d503201f 	nop
+    4008071c:	d503201f 	nop
+    40080720:	d503201f 	nop
+    40080724:	d503201f 	nop
+    40080728:	d503201f 	nop
+    4008072c:	d503201f 	nop
+    40080730:	d503201f 	nop
+    40080734:	d503201f 	nop
+    40080738:	d503201f 	nop
+    4008073c:	d503201f 	nop
+    40080740:	d503201f 	nop
+    40080744:	d503201f 	nop
+    40080748:	d503201f 	nop
+    4008074c:	d503201f 	nop
+    40080750:	d503201f 	nop
+    40080754:	d503201f 	nop
+    40080758:	d503201f 	nop
+    4008075c:	d503201f 	nop
+    40080760:	d503201f 	nop
+    40080764:	d503201f 	nop
+    40080768:	d503201f 	nop
+    4008076c:	d503201f 	nop
+    40080770:	d503201f 	nop
+    40080774:	d503201f 	nop
+    40080778:	d503201f 	nop
+    4008077c:	d503201f 	nop
+
+0000000040080780 <el64_serror>:
+    vector el64_serror
+    40080780:	d5385210 	mrs	x16, esr_el1
+    40080784:	d5384031 	mrs	x17, elr_el1
+    40080788:	d5386012 	mrs	x18, far_el1
+    4008078c:	17fffffd 	b	40080780 <el64_serror>
+    40080790:	d503201f 	nop
+    40080794:	d503201f 	nop
+    40080798:	d503201f 	nop
+    4008079c:	d503201f 	nop
+    400807a0:	d503201f 	nop
+    400807a4:	d503201f 	nop
+    400807a8:	d503201f 	nop
+    400807ac:	d503201f 	nop
+    400807b0:	d503201f 	nop
+    400807b4:	d503201f 	nop
+    400807b8:	d503201f 	nop
+    400807bc:	d503201f 	nop
+    400807c0:	d503201f 	nop
+    400807c4:	d503201f 	nop
+    400807c8:	d503201f 	nop
+    400807cc:	d503201f 	nop
+    400807d0:	d503201f 	nop
+    400807d4:	d503201f 	nop
+    400807d8:	d503201f 	nop
+    400807dc:	d503201f 	nop
+    400807e0:	d503201f 	nop
+    400807e4:	d503201f 	nop
+    400807e8:	d503201f 	nop
+    400807ec:	d503201f 	nop
+    400807f0:	d503201f 	nop
+    400807f4:	d503201f 	nop
+    400807f8:	d503201f 	nop
+    400807fc:	d503201f 	nop
+
+0000000040080800 <el32_sync>:
+    vector el32_sync
+    40080800:	d5385210 	mrs	x16, esr_el1
+    40080804:	d5384031 	mrs	x17, elr_el1
+    40080808:	d5386012 	mrs	x18, far_el1
+    4008080c:	17fffffd 	b	40080800 <el32_sync>
+    40080810:	d503201f 	nop
+    40080814:	d503201f 	nop
+    40080818:	d503201f 	nop
+    4008081c:	d503201f 	nop
+    40080820:	d503201f 	nop
+    40080824:	d503201f 	nop
+    40080828:	d503201f 	nop
+    4008082c:	d503201f 	nop
+    40080830:	d503201f 	nop
+    40080834:	d503201f 	nop
+    40080838:	d503201f 	nop
+    4008083c:	d503201f 	nop
+    40080840:	d503201f 	nop
+    40080844:	d503201f 	nop
+    40080848:	d503201f 	nop
+    4008084c:	d503201f 	nop
+    40080850:	d503201f 	nop
+    40080854:	d503201f 	nop
+    40080858:	d503201f 	nop
+    4008085c:	d503201f 	nop
+    40080860:	d503201f 	nop
+    40080864:	d503201f 	nop
+    40080868:	d503201f 	nop
+    4008086c:	d503201f 	nop
+    40080870:	d503201f 	nop
+    40080874:	d503201f 	nop
+    40080878:	d503201f 	nop
+    4008087c:	d503201f 	nop
+
+0000000040080880 <el32_irq>:
+    vector el32_irq
+    40080880:	d5385210 	mrs	x16, esr_el1
+    40080884:	d5384031 	mrs	x17, elr_el1
+    40080888:	d5386012 	mrs	x18, far_el1
+    4008088c:	17fffffd 	b	40080880 <el32_irq>
+    40080890:	d503201f 	nop
+    40080894:	d503201f 	nop
+    40080898:	d503201f 	nop
+    4008089c:	d503201f 	nop
+    400808a0:	d503201f 	nop
+    400808a4:	d503201f 	nop
+    400808a8:	d503201f 	nop
+    400808ac:	d503201f 	nop
+    400808b0:	d503201f 	nop
+    400808b4:	d503201f 	nop
+    400808b8:	d503201f 	nop
+    400808bc:	d503201f 	nop
+    400808c0:	d503201f 	nop
+    400808c4:	d503201f 	nop
+    400808c8:	d503201f 	nop
+    400808cc:	d503201f 	nop
+    400808d0:	d503201f 	nop
+    400808d4:	d503201f 	nop
+    400808d8:	d503201f 	nop
+    400808dc:	d503201f 	nop
+    400808e0:	d503201f 	nop
+    400808e4:	d503201f 	nop
+    400808e8:	d503201f 	nop
+    400808ec:	d503201f 	nop
+    400808f0:	d503201f 	nop
+    400808f4:	d503201f 	nop
+    400808f8:	d503201f 	nop
+    400808fc:	d503201f 	nop
+
+0000000040080900 <el32_fiq>:
+    vector el32_fiq
+    40080900:	d5385210 	mrs	x16, esr_el1
+    40080904:	d5384031 	mrs	x17, elr_el1
+    40080908:	d5386012 	mrs	x18, far_el1
+    4008090c:	17fffffd 	b	40080900 <el32_fiq>
+    40080910:	d503201f 	nop
+    40080914:	d503201f 	nop
+    40080918:	d503201f 	nop
+    4008091c:	d503201f 	nop
+    40080920:	d503201f 	nop
+    40080924:	d503201f 	nop
+    40080928:	d503201f 	nop
+    4008092c:	d503201f 	nop
+    40080930:	d503201f 	nop
+    40080934:	d503201f 	nop
+    40080938:	d503201f 	nop
+    4008093c:	d503201f 	nop
+    40080940:	d503201f 	nop
+    40080944:	d503201f 	nop
+    40080948:	d503201f 	nop
+    4008094c:	d503201f 	nop
+    40080950:	d503201f 	nop
+    40080954:	d503201f 	nop
+    40080958:	d503201f 	nop
+    4008095c:	d503201f 	nop
+    40080960:	d503201f 	nop
+    40080964:	d503201f 	nop
+    40080968:	d503201f 	nop
+    4008096c:	d503201f 	nop
+    40080970:	d503201f 	nop
+    40080974:	d503201f 	nop
+    40080978:	d503201f 	nop
+    4008097c:	d503201f 	nop
+
+0000000040080980 <el32_serror>:
+    vector el32_serror
+    40080980:	d5385210 	mrs	x16, esr_el1
+    40080984:	d5384031 	mrs	x17, elr_el1
+    40080988:	d5386012 	mrs	x18, far_el1
+    4008098c:	17fffffd 	b	40080980 <el32_serror>
+
+0000000040080990 <uart_addr>:
+    40080990:	09000000 	.word	0x09000000
+    40080994:	00000000 	.inst	0x00000000 ; undefined
+    40080998:	40080200 	.word	0x40080200
+    4008099c:	00000000 	.word	0x00000000
+    400809a0:	40084000 	.word	0x40084000
+    400809a4:	00000000 	.word	0x00000000
+
+00000000400809a8 <pci_scan>:
 }
 
 
 int
 pci_scan(void)
 {
-   0:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
-   4:	910003fd 	mov	x29, sp
-   8:	a90153f3 	stp	x19, x20, [sp, #16]
-   c:	a9025bf5 	stp	x21, x22, [sp, #32]
-  10:	a90363f7 	stp	x23, x24, [sp, #48]
-  14:	f90023f9 	str	x25, [sp, #64]
+    400809a8:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+    400809ac:	910003fd 	mov	x29, sp
+    400809b0:	a90153f3 	stp	x19, x20, [sp, #16]
+    400809b4:	a9025bf5 	stp	x21, x22, [sp, #32]
+    400809b8:	a90363f7 	stp	x23, x24, [sp, #48]
+    400809bc:	f90023f9 	str	x25, [sp, #64]
     struct pci_confspace * conf;
 
     for (u64 i = PCIE_CONF_ADDR; i < PCIE_CONF_END; i += PCIE_CONF_SIZE) {
-  18:	d2a20014 	mov	x20, #0x10000000            	// #268435456
-  1c:	f2c00814 	movk	x20, #0x40, lsl #32
+    400809c0:	d2a20014 	mov	x20, #0x10000000            	// #268435456
+    400809c4:	f2c00814 	movk	x20, #0x40, lsl #32
         conf = (void *)i;
 
         if (conf->vendorId  &&  conf->vendorId != 0xffff) {
             printf("  %x %x %x\n", i, conf->vendorId, conf->deviceId);
-  20:	90000017 	adrp	x23, 0 <pci_scan>
-  24:	910002f7 	add	x23, x23, #0x0
+    400809c8:	90000017 	adrp	x23, 40080000 <crt>
+    400809cc:	913a42f7 	add	x23, x23, #0xe90
             if (conf->capPtr) {
                 struct pci_capability * cap = (void *)i + conf->capPtr;
                 for (; cap->next; cap = (void *)i + cap->next) {
                     printf("        %x cap", cap);
                     if (cap->expCap)  printf(" exp(%x)", cap->expCap);
                     if (cap->devCap)  printf(" dev(%x,%x)", cap->devCap, cap->devStatus);
-  28:	90000018 	adrp	x24, 0 <pci_scan>
-  2c:	91000318 	add	x24, x24, #0x0
-  30:	1400001d 	b	a4 <pci_scan+0xa4>
+    400809d0:	90000018 	adrp	x24, 40080000 <crt>
+    400809d4:	913bc318 	add	x24, x24, #0xef0
+    400809d8:	1400001d 	b	40080a4c <pci_scan+0xa4>
                     printf("    %x bar%d class(%x,%x) prg(%x) size(%x)\n", conf->bar + j, j,
-  34:	cb0603e6 	neg	x6, x6
-  38:	394026a5 	ldrb	w5, [x21, #9]
-  3c:	39402aa4 	ldrb	w4, [x21, #10]
-  40:	39402ea3 	ldrb	w3, [x21, #11]
-  44:	2a1303e2 	mov	w2, w19
-  48:	8b33cb21 	add	x1, x25, w19, sxtw #2
-  4c:	aa1603e0 	mov	x0, x22
-  50:	94000000 	bl	0 <printf>
+    400809dc:	cb0603e6 	neg	x6, x6
+    400809e0:	394026a5 	ldrb	w5, [x21, #9]
+    400809e4:	39402aa4 	ldrb	w4, [x21, #10]
+    400809e8:	39402ea3 	ldrb	w3, [x21, #11]
+    400809ec:	2a1303e2 	mov	w2, w19
+    400809f0:	8b33cb21 	add	x1, x25, w19, sxtw #2
+    400809f4:	aa1603e0 	mov	x0, x22
+    400809f8:	9400006d 	bl	40080bac <printf>
             for (int j = 0; j < 6; j++) {
-  54:	11000673 	add	w19, w19, #0x1
-  58:	7100167f 	cmp	w19, #0x5
-  5c:	5400016c 	b.gt	88 <pci_scan+0x88>
+    400809fc:	11000673 	add	w19, w19, #0x1
+    40080a00:	7100167f 	cmp	w19, #0x5
+    40080a04:	5400016c 	b.gt	40080a30 <pci_scan+0x88>
                 if (conf->bar[j]) {
-  60:	8b33caa1 	add	x1, x21, w19, sxtw #2
-  64:	b9401020 	ldr	w0, [x1, #16]
-  68:	34ffff60 	cbz	w0, 54 <pci_scan+0x54>
+    40080a08:	8b33caa1 	add	x1, x21, w19, sxtw #2
+    40080a0c:	b9401020 	ldr	w0, [x1, #16]
+    40080a10:	34ffff60 	cbz	w0, 400809fc <pci_scan+0x54>
                     u64 siz = 0xffffffff00000000ull | (conf->bar[j] & 0xfffffff0);
-  6c:	927c6c06 	and	x6, x0, #0xfffffff0
-  70:	b2607cc6 	orr	x6, x6, #0xffffffff00000000
+    40080a14:	927c6c06 	and	x6, x0, #0xfffffff0
+    40080a18:	b2607cc6 	orr	x6, x6, #0xffffffff00000000
                     if (conf->bar[j] & PCI_CONF_BAR_64BIT)
-  74:	3617fe00 	tbz	w0, #2, 34 <pci_scan+0x34>
+    40080a1c:	3617fe00 	tbz	w0, #2, 400809dc <pci_scan+0x34>
                         siz |= ((u64)conf->bar[++j] << 32);
-  78:	11000673 	add	w19, w19, #0x1
-  7c:	b9401420 	ldr	w0, [x1, #20]
-  80:	aa0080c6 	orr	x6, x6, x0, lsl #32
-  84:	17ffffec 	b	34 <pci_scan+0x34>
+    40080a20:	11000673 	add	w19, w19, #0x1
+    40080a24:	b9401420 	ldr	w0, [x1, #20]
+    40080a28:	aa0080c6 	orr	x6, x6, x0, lsl #32
+    40080a2c:	17ffffec 	b	400809dc <pci_scan+0x34>
             if (conf->capPtr) {
-  88:	3940d2b3 	ldrb	w19, [x21, #52]
-  8c:	350003b3 	cbnz	w19, 100 <pci_scan+0x100>
+    40080a30:	3940d2b3 	ldrb	w19, [x21, #52]
+    40080a34:	350003b3 	cbnz	w19, 40080aa8 <pci_scan+0x100>
     for (u64 i = PCIE_CONF_ADDR; i < PCIE_CONF_END; i += PCIE_CONF_SIZE) {
-  90:	91402294 	add	x20, x20, #0x8, lsl #12
-  94:	d2a40000 	mov	x0, #0x20000000            	// #536870912
-  98:	f2c00800 	movk	x0, #0x40, lsl #32
-  9c:	eb00029f 	cmp	x20, x0
-  a0:	54000860 	b.eq	1ac <pci_scan+0x1ac>  // b.none
+    40080a38:	91402294 	add	x20, x20, #0x8, lsl #12
+    40080a3c:	d2a40000 	mov	x0, #0x20000000            	// #536870912
+    40080a40:	f2c00800 	movk	x0, #0x40, lsl #32
+    40080a44:	eb00029f 	cmp	x20, x0
+    40080a48:	54000860 	b.eq	40080b54 <pci_scan+0x1ac>  // b.none
         conf = (void *)i;
-  a4:	aa1403f5 	mov	x21, x20
+    40080a4c:	aa1403f5 	mov	x21, x20
         if (conf->vendorId  &&  conf->vendorId != 0xffff) {
-  a8:	79400282 	ldrh	w2, [x20]
-  ac:	51000441 	sub	w1, w2, #0x1
-  b0:	529fffa0 	mov	w0, #0xfffd                	// #65533
-  b4:	6b21201f 	cmp	w0, w1, uxth
-  b8:	54fffec3 	b.cc	90 <pci_scan+0x90>  // b.lo, b.ul, b.last
+    40080a50:	79400282 	ldrh	w2, [x20]
+    40080a54:	51000441 	sub	w1, w2, #0x1
+    40080a58:	529fffa0 	mov	w0, #0xfffd                	// #65533
+    40080a5c:	6b21201f 	cmp	w0, w1, uxth
+    40080a60:	54fffec3 	b.cc	40080a38 <pci_scan+0x90>  // b.lo, b.ul, b.last
             printf("  %x %x %x\n", i, conf->vendorId, conf->deviceId);
-  bc:	79400683 	ldrh	w3, [x20, #2]
-  c0:	aa1403e1 	mov	x1, x20
-  c4:	aa1703e0 	mov	x0, x23
-  c8:	94000000 	bl	0 <printf>
+    40080a64:	79400683 	ldrh	w3, [x20, #2]
+    40080a68:	aa1403e1 	mov	x1, x20
+    40080a6c:	aa1703e0 	mov	x0, x23
+    40080a70:	9400004f 	bl	40080bac <printf>
                 conf->bar[j] = 0xffffffff;
-  cc:	12800000 	mov	w0, #0xffffffff            	// #-1
-  d0:	b9001280 	str	w0, [x20, #16]
-  d4:	b9001680 	str	w0, [x20, #20]
-  d8:	b9001a80 	str	w0, [x20, #24]
-  dc:	b9001e80 	str	w0, [x20, #28]
-  e0:	b9002280 	str	w0, [x20, #32]
-  e4:	b9002680 	str	w0, [x20, #36]
+    40080a74:	12800000 	mov	w0, #0xffffffff            	// #-1
+    40080a78:	b9001280 	str	w0, [x20, #16]
+    40080a7c:	b9001680 	str	w0, [x20, #20]
+    40080a80:	b9001a80 	str	w0, [x20, #24]
+    40080a84:	b9001e80 	str	w0, [x20, #28]
+    40080a88:	b9002280 	str	w0, [x20, #32]
+    40080a8c:	b9002680 	str	w0, [x20, #36]
             dc_invalidate((u64)conf->bar);
-  e8:	91004299 	add	x25, x20, #0x10
+    40080a90:	91004299 	add	x25, x20, #0x10
     __asm__ __volatile__("dc civac, %0\n\t" : : "r" (va) : "memory");
-  ec:	d50b7e39 	dc	civac, x25
+    40080a94:	d50b7e39 	dc	civac, x25
             for (int j = 0; j < 6; j++) {
-  f0:	52800013 	mov	w19, #0x0                   	// #0
+    40080a98:	52800013 	mov	w19, #0x0                   	// #0
                     printf("    %x bar%d class(%x,%x) prg(%x) size(%x)\n", conf->bar + j, j,
-  f4:	90000016 	adrp	x22, 0 <pci_scan>
-  f8:	910002d6 	add	x22, x22, #0x0
-  fc:	17ffffd9 	b	60 <pci_scan+0x60>
+    40080a9c:	90000016 	adrp	x22, 40080000 <crt>
+    40080aa0:	913a82d6 	add	x22, x22, #0xea0
+    40080aa4:	17ffffd9 	b	40080a08 <pci_scan+0x60>
                 struct pci_capability * cap = (void *)i + conf->capPtr;
- 100:	8b330293 	add	x19, x20, w19, uxtb
+    40080aa8:	8b330293 	add	x19, x20, w19, uxtb
                 for (; cap->next; cap = (void *)i + cap->next) {
- 104:	39400660 	ldrb	w0, [x19, #1]
- 108:	34fffc40 	cbz	w0, 90 <pci_scan+0x90>
+    40080aac:	39400660 	ldrb	w0, [x19, #1]
+    40080ab0:	34fffc40 	cbz	w0, 40080a38 <pci_scan+0x90>
                     printf("        %x cap", cap);
- 10c:	90000015 	adrp	x21, 0 <pci_scan>
- 110:	910002b5 	add	x21, x21, #0x0
+    40080ab4:	90000015 	adrp	x21, 40080000 <crt>
+    40080ab8:	913b42b5 	add	x21, x21, #0xed0
                     if (cap->expCap)  printf(" exp(%x)", cap->expCap);
- 114:	90000016 	adrp	x22, 0 <pci_scan>
- 118:	910002d6 	add	x22, x22, #0x0
- 11c:	14000018 	b	17c <pci_scan+0x17c>
- 120:	aa1603e0 	mov	x0, x22
- 124:	94000000 	bl	0 <printf>
- 128:	1400001a 	b	190 <pci_scan+0x190>
+    40080abc:	90000016 	adrp	x22, 40080000 <crt>
+    40080ac0:	913b82d6 	add	x22, x22, #0xee0
+    40080ac4:	14000014 	b	40080b14 <pci_scan+0x16c>
+    40080ac8:	aa1603e0 	mov	x0, x22
+    40080acc:	94000038 	bl	40080bac <printf>
+    40080ad0:	14000016 	b	40080b28 <pci_scan+0x180>
                     if (cap->devCap)  printf(" dev(%x,%x)", cap->devCap, cap->devStatus);
- 12c:	79401662 	ldrh	w2, [x19, #10]
- 130:	aa1803e0 	mov	x0, x24
- 134:	94000000 	bl	0 <printf>
- 138:	14000018 	b	198 <pci_scan+0x198>
+    40080ad4:	79401662 	ldrh	w2, [x19, #10]
+    40080ad8:	aa1803e0 	mov	x0, x24
+    40080adc:	94000034 	bl	40080bac <printf>
+    40080ae0:	14000014 	b	40080b30 <pci_scan+0x188>
                     if (cap->linkCap) printf(" link(%x,%x)", cap->linkCap, cap->linkStatus);
- 13c:	79402662 	ldrh	w2, [x19, #18]
- 140:	90000000 	adrp	x0, 0 <pci_scan>
- 144:	91000000 	add	x0, x0, #0x0
- 148:	94000000 	bl	0 <printf>
- 14c:	14000015 	b	1a0 <pci_scan+0x1a0>
+    40080ae4:	79402662 	ldrh	w2, [x19, #18]
+    40080ae8:	90000000 	adrp	x0, 40080000 <crt>
+    40080aec:	913c0000 	add	x0, x0, #0xf00
+    40080af0:	9400002f 	bl	40080bac <printf>
+    40080af4:	14000011 	b	40080b38 <pci_scan+0x190>
                     if (cap->slotCap) printf(" slot(%x,%x)", cap->slotCap, cap->slotStatus);
- 150:	79403662 	ldrh	w2, [x19, #26]
- 154:	90000000 	adrp	x0, 0 <pci_scan>
- 158:	91000000 	add	x0, x0, #0x0
- 15c:	94000000 	bl	0 <printf>
                     con_puts("\n");         // gcc uses putchar for printf("\n")
- 160:	90000000 	adrp	x0, 0 <pci_scan>
- 164:	91000000 	add	x0, x0, #0x0
- 168:	94000000 	bl	0 <con_puts>
+    40080af8:	90000000 	adrp	x0, 40080000 <crt>
+    40080afc:	913c8000 	add	x0, x0, #0xf20
+    40080b00:	97fffd53 	bl	4008004c <con_puts>
                 for (; cap->next; cap = (void *)i + cap->next) {
- 16c:	39400673 	ldrb	w19, [x19, #1]
- 170:	8b140273 	add	x19, x19, x20
- 174:	39400660 	ldrb	w0, [x19, #1]
- 178:	34fff8c0 	cbz	w0, 90 <pci_scan+0x90>
+    40080b04:	39400673 	ldrb	w19, [x19, #1]
+    40080b08:	8b140273 	add	x19, x19, x20
+    40080b0c:	39400660 	ldrb	w0, [x19, #1]
+    40080b10:	34fff940 	cbz	w0, 40080a38 <pci_scan+0x90>
                     printf("        %x cap", cap);
- 17c:	aa1303e1 	mov	x1, x19
- 180:	aa1503e0 	mov	x0, x21
- 184:	94000000 	bl	0 <printf>
+    40080b14:	aa1303e1 	mov	x1, x19
+    40080b18:	aa1503e0 	mov	x0, x21
+    40080b1c:	94000024 	bl	40080bac <printf>
                     if (cap->expCap)  printf(" exp(%x)", cap->expCap);
- 188:	79400661 	ldrh	w1, [x19, #2]
- 18c:	35fffca1 	cbnz	w1, 120 <pci_scan+0x120>
+    40080b20:	79400661 	ldrh	w1, [x19, #2]
+    40080b24:	35fffd21 	cbnz	w1, 40080ac8 <pci_scan+0x120>
                     if (cap->devCap)  printf(" dev(%x,%x)", cap->devCap, cap->devStatus);
- 190:	b9400661 	ldr	w1, [x19, #4]
- 194:	35fffcc1 	cbnz	w1, 12c <pci_scan+0x12c>
+    40080b28:	b9400661 	ldr	w1, [x19, #4]
+    40080b2c:	35fffd41 	cbnz	w1, 40080ad4 <pci_scan+0x12c>
                     if (cap->linkCap) printf(" link(%x,%x)", cap->linkCap, cap->linkStatus);
- 198:	b9400e61 	ldr	w1, [x19, #12]
- 19c:	35fffd01 	cbnz	w1, 13c <pci_scan+0x13c>
+    40080b30:	b9400e61 	ldr	w1, [x19, #12]
+    40080b34:	35fffd81 	cbnz	w1, 40080ae4 <pci_scan+0x13c>
                     if (cap->slotCap) printf(" slot(%x,%x)", cap->slotCap, cap->slotStatus);
- 1a0:	b9401661 	ldr	w1, [x19, #20]
- 1a4:	34fffde1 	cbz	w1, 160 <pci_scan+0x160>
- 1a8:	17ffffea 	b	150 <pci_scan+0x150>
+    40080b38:	b9401661 	ldr	w1, [x19, #20]
+    40080b3c:	34fffde1 	cbz	w1, 40080af8 <pci_scan+0x150>
+    40080b40:	79403662 	ldrh	w2, [x19, #26]
+    40080b44:	90000000 	adrp	x0, 40080000 <crt>
+    40080b48:	913c4000 	add	x0, x0, #0xf10
+    40080b4c:	94000018 	bl	40080bac <printf>
+    40080b50:	17ffffea 	b	40080af8 <pci_scan+0x150>
                 }
             }
         }
     }
 }
- 1ac:	a94153f3 	ldp	x19, x20, [sp, #16]
- 1b0:	a9425bf5 	ldp	x21, x22, [sp, #32]
- 1b4:	a94363f7 	ldp	x23, x24, [sp, #48]
- 1b8:	f94023f9 	ldr	x25, [sp, #64]
- 1bc:	a8c57bfd 	ldp	x29, x30, [sp], #80
- 1c0:	d65f03c0 	ret
+    40080b54:	a94153f3 	ldp	x19, x20, [sp, #16]
+    40080b58:	a9425bf5 	ldp	x21, x22, [sp, #32]
+    40080b5c:	a94363f7 	ldp	x23, x24, [sp, #48]
+    40080b60:	f94023f9 	ldr	x25, [sp, #64]
+    40080b64:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    40080b68:	d65f03c0 	ret
 
-00000000000001c4 <main>:
+0000000040080b6c <main>:
 
 
 void
 main(int ac, char * av[])
 {
- 1c4:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
- 1c8:	910003fd 	mov	x29, sp
- 1cc:	a90153f3 	stp	x19, x20, [sp, #16]
+    40080b6c:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+    40080b70:	910003fd 	mov	x29, sp
+    40080b74:	a90153f3 	stp	x19, x20, [sp, #16]
     char c;
     do {
         pci_scan();
         c = con_getc();
         printf("-------- %c\n", c);
- 1d0:	90000014 	adrp	x20, 0 <pci_scan>
- 1d4:	91000294 	add	x20, x20, #0x0
+    40080b78:	90000014 	adrp	x20, 40080000 <crt>
+    40080b7c:	913ca294 	add	x20, x20, #0xf28
         pci_scan();
- 1d8:	94000000 	bl	0 <pci_scan>
+    40080b80:	97ffff8a 	bl	400809a8 <pci_scan>
         c = con_getc();
- 1dc:	94000000 	bl	0 <con_getc>
- 1e0:	12001c13 	and	w19, w0, #0xff
+    40080b84:	97fffd46 	bl	4008009c <con_getc>
+    40080b88:	12001c13 	and	w19, w0, #0xff
         printf("-------- %c\n", c);
- 1e4:	2a1303e1 	mov	w1, w19
- 1e8:	aa1403e0 	mov	x0, x20
- 1ec:	94000000 	bl	0 <printf>
+    40080b8c:	2a1303e1 	mov	w1, w19
+    40080b90:	aa1403e0 	mov	x0, x20
+    40080b94:	94000006 	bl	40080bac <printf>
     } while (c != 'q');
- 1f0:	7101c67f 	cmp	w19, #0x71
- 1f4:	54ffff21 	b.ne	1d8 <main+0x14>  // b.any
+    40080b98:	7101c67f 	cmp	w19, #0x71
+    40080b9c:	54ffff21 	b.ne	40080b80 <main+0x14>  // b.any
 }
- 1f8:	a94153f3 	ldp	x19, x20, [sp, #16]
- 1fc:	a8c27bfd 	ldp	x29, x30, [sp], #32
- 200:	d65f03c0 	ret
+    40080ba0:	a94153f3 	ldp	x19, x20, [sp, #16]
+    40080ba4:	a8c27bfd 	ldp	x29, x30, [sp], #32
+    40080ba8:	d65f03c0 	ret
+
+0000000040080bac <printf>:
+
+static const char xdigits[16] = { "0123456789abcdef" };
+
+int
+printf(const char * fmt, ...)
+{
+    40080bac:	a9b77bfd 	stp	x29, x30, [sp, #-144]!
+    40080bb0:	910003fd 	mov	x29, sp
+    40080bb4:	f9002fe1 	str	x1, [sp, #88]
+    40080bb8:	f90033e2 	str	x2, [sp, #96]
+    40080bbc:	f90037e3 	str	x3, [sp, #104]
+    40080bc0:	f9003be4 	str	x4, [sp, #112]
+    40080bc4:	f9003fe5 	str	x5, [sp, #120]
+    40080bc8:	f90043e6 	str	x6, [sp, #128]
+    40080bcc:	f90047e7 	str	x7, [sp, #136]
+    static char buf[1024];
+    char nbuf[32];
+    int rc;
+    va_list ap;
+    va_start(ap, fmt);
+    40080bd0:	910243e1 	add	x1, sp, #0x90
+    40080bd4:	f9000be1 	str	x1, [sp, #16]
+    40080bd8:	f9000fe1 	str	x1, [sp, #24]
+    40080bdc:	910143e1 	add	x1, sp, #0x50
+    40080be0:	f90013e1 	str	x1, [sp, #32]
+    40080be4:	128006e1 	mov	w1, #0xffffffc8            	// #-56
+    40080be8:	b9002be1 	str	w1, [sp, #40]
+    40080bec:	b9002fff 	str	wzr, [sp, #44]
+
+    char * q = buf;
+    for (const char * p = fmt; *p; p++) {
+    40080bf0:	39400002 	ldrb	w2, [x0]
+    40080bf4:	340013a2 	cbz	w2, 40080e68 <printf+0x2bc>
+                while (*s)  *q++ = *s++;
+                break;
+            case 'x':
+                *q++ = '0';
+                *q++ = 'x';
+                u = va_arg(ap, unsigned long);
+    40080bf8:	f9400feb 	ldr	x11, [sp, #24]
+    char * q = buf;
+    40080bfc:	90000021 	adrp	x1, 40084000 <eop_msg>
+    40080c00:	91006021 	add	x1, x1, #0x18
+                if (s == 0) s = "(null)";
+    40080c04:	9000000d 	adrp	x13, 40080000 <crt>
+                while (*s)  *q++ = *s++;
+    40080c08:	5280050c 	mov	w12, #0x28                  	// #40
+                *q++ = '0';
+    40080c0c:	5280060a 	mov	w10, #0x30                  	// #48
+                *q++ = 'x';
+    40080c10:	52800f09 	mov	w9, #0x78                  	// #120
+                s = nbuf;
+                do {
+                    *s++ = xdigits[u % 16];
+    40080c14:	90000007 	adrp	x7, 40080000 <crt>
+    40080c18:	913f40e7 	add	x7, x7, #0xfd0
+                    u /= 16;
+                } while (u);
+                while (s > nbuf)  *q++ = *--s;
+    40080c1c:	9100c3e6 	add	x6, sp, #0x30
+                    *s++ = '0' + u % 10;
+    40080c20:	b202e7e8 	mov	x8, #0xcccccccccccccccc    	// #-3689348814741910324
+    40080c24:	f29999a8 	movk	x8, #0xcccd
+    40080c28:	14000066 	b	40080dc0 <printf+0x214>
+            switch (*++p) {
+    40080c2c:	7101e01f 	cmp	w0, #0x78
+    40080c30:	54000c21 	b.ne	40080db4 <printf+0x208>  // b.any
+                *q++ = '0';
+    40080c34:	aa0103e5 	mov	x5, x1
+    40080c38:	380024aa 	strb	w10, [x5], #2
+                *q++ = 'x';
+    40080c3c:	39000429 	strb	w9, [x1, #1]
+                u = va_arg(ap, unsigned long);
+    40080c40:	b9402be1 	ldr	w1, [sp, #40]
+    40080c44:	f9400be0 	ldr	x0, [sp, #16]
+    40080c48:	37f809e1 	tbnz	w1, #31, 40080d84 <printf+0x1d8>
+    40080c4c:	91003c01 	add	x1, x0, #0xf
+    40080c50:	927df021 	and	x1, x1, #0xfffffffffffffff8
+    40080c54:	f9000be1 	str	x1, [sp, #16]
+    40080c58:	f9400000 	ldr	x0, [x0]
+                s = nbuf;
+    40080c5c:	9100c3e1 	add	x1, sp, #0x30
+                    *s++ = xdigits[u % 16];
+    40080c60:	92400c02 	and	x2, x0, #0xf
+    40080c64:	386268e2 	ldrb	w2, [x7, x2]
+    40080c68:	38001422 	strb	w2, [x1], #1
+                } while (u);
+    40080c6c:	f1003c1f 	cmp	x0, #0xf
+    40080c70:	d344fc00 	lsr	x0, x0, #4
+    40080c74:	54ffff68 	b.hi	40080c60 <printf+0xb4>  // b.pmore
+                while (s > nbuf)  *q++ = *--s;
+    40080c78:	eb06003f 	cmp	x1, x6
+    40080c7c:	54000f29 	b.ls	40080e60 <printf+0x2b4>  // b.plast
+                    *s++ = xdigits[u % 16];
+    40080c80:	aa0103e0 	mov	x0, x1
+                *q++ = 'x';
+    40080c84:	aa0503e2 	mov	x2, x5
+                while (s > nbuf)  *q++ = *--s;
+    40080c88:	385ffc03 	ldrb	w3, [x0, #-1]!
+    40080c8c:	38001443 	strb	w3, [x2], #1
+    40080c90:	eb06001f 	cmp	x0, x6
+    40080c94:	54ffffa1 	b.ne	40080c88 <printf+0xdc>  // b.any
+    40080c98:	cb060021 	sub	x1, x1, x6
+    40080c9c:	8b0100a1 	add	x1, x5, x1
+    40080ca0:	14000045 	b	40080db4 <printf+0x208>
+                u = va_arg(ap, int);
+    40080ca4:	b9402be2 	ldr	w2, [sp, #40]
+    40080ca8:	f9400be0 	ldr	x0, [sp, #16]
+    40080cac:	37f800e2 	tbnz	w2, #31, 40080cc8 <printf+0x11c>
+    40080cb0:	91002c02 	add	x2, x0, #0xb
+    40080cb4:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080cb8:	f9000be2 	str	x2, [sp, #16]
+    40080cbc:	b9800000 	ldrsw	x0, [x0]
+                *q++ = u;
+    40080cc0:	38001420 	strb	w0, [x1], #1
+                break;
+    40080cc4:	1400003c 	b	40080db4 <printf+0x208>
+                u = va_arg(ap, int);
+    40080cc8:	11002043 	add	w3, w2, #0x8
+    40080ccc:	b9002be3 	str	w3, [sp, #40]
+    40080cd0:	7100007f 	cmp	w3, #0x0
+    40080cd4:	540000ad 	b.le	40080ce8 <printf+0x13c>
+    40080cd8:	91002c02 	add	x2, x0, #0xb
+    40080cdc:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080ce0:	f9000be2 	str	x2, [sp, #16]
+    40080ce4:	17fffff6 	b	40080cbc <printf+0x110>
+    40080ce8:	8b22c160 	add	x0, x11, w2, sxtw
+    40080cec:	17fffff4 	b	40080cbc <printf+0x110>
+                u = va_arg(ap, int);
+    40080cf0:	11002043 	add	w3, w2, #0x8
+    40080cf4:	b9002be3 	str	w3, [sp, #40]
+    40080cf8:	7100007f 	cmp	w3, #0x0
+    40080cfc:	540000ad 	b.le	40080d10 <printf+0x164>
+    40080d00:	91002c02 	add	x2, x0, #0xb
+    40080d04:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080d08:	f9000be2 	str	x2, [sp, #16]
+    40080d0c:	1400003e 	b	40080e04 <printf+0x258>
+    40080d10:	8b22c160 	add	x0, x11, w2, sxtw
+    40080d14:	1400003c 	b	40080e04 <printf+0x258>
+                s = va_arg(ap, char *);
+    40080d18:	b9402be2 	ldr	w2, [sp, #40]
+    40080d1c:	f9400be0 	ldr	x0, [sp, #16]
+    40080d20:	37f80182 	tbnz	w2, #31, 40080d50 <printf+0x1a4>
+    40080d24:	91003c02 	add	x2, x0, #0xf
+    40080d28:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080d2c:	f9000be2 	str	x2, [sp, #16]
+    40080d30:	f9400002 	ldr	x2, [x0]
+                if (s == 0) s = "(null)";
+    40080d34:	b4000222 	cbz	x2, 40080d78 <printf+0x1cc>
+                while (*s)  *q++ = *s++;
+    40080d38:	39400040 	ldrb	w0, [x2]
+    40080d3c:	340003c0 	cbz	w0, 40080db4 <printf+0x208>
+    40080d40:	38001420 	strb	w0, [x1], #1
+    40080d44:	38401c40 	ldrb	w0, [x2, #1]!
+    40080d48:	35ffffc0 	cbnz	w0, 40080d40 <printf+0x194>
+    40080d4c:	1400001a 	b	40080db4 <printf+0x208>
+                s = va_arg(ap, char *);
+    40080d50:	11002043 	add	w3, w2, #0x8
+    40080d54:	b9002be3 	str	w3, [sp, #40]
+    40080d58:	7100007f 	cmp	w3, #0x0
+    40080d5c:	540000ad 	b.le	40080d70 <printf+0x1c4>
+    40080d60:	91003c02 	add	x2, x0, #0xf
+    40080d64:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080d68:	f9000be2 	str	x2, [sp, #16]
+    40080d6c:	17fffff1 	b	40080d30 <printf+0x184>
+    40080d70:	8b22c160 	add	x0, x11, w2, sxtw
+    40080d74:	17ffffef 	b	40080d30 <printf+0x184>
+                if (s == 0) s = "(null)";
+    40080d78:	913ce1a2 	add	x2, x13, #0xf38
+                while (*s)  *q++ = *s++;
+    40080d7c:	2a0c03e0 	mov	w0, w12
+    40080d80:	17fffff0 	b	40080d40 <printf+0x194>
+                u = va_arg(ap, unsigned long);
+    40080d84:	11002022 	add	w2, w1, #0x8
+    40080d88:	b9002be2 	str	w2, [sp, #40]
+    40080d8c:	7100005f 	cmp	w2, #0x0
+    40080d90:	540000ad 	b.le	40080da4 <printf+0x1f8>
+    40080d94:	91003c01 	add	x1, x0, #0xf
+    40080d98:	927df021 	and	x1, x1, #0xfffffffffffffff8
+    40080d9c:	f9000be1 	str	x1, [sp, #16]
+    40080da0:	17ffffae 	b	40080c58 <printf+0xac>
+    40080da4:	8b21c160 	add	x0, x11, w1, sxtw
+    40080da8:	17ffffac 	b	40080c58 <printf+0xac>
+            default:
+                /* fall-through */
+                break;
+            }
+        } else {
+            *q++ = *p;
+    40080dac:	38001422 	strb	w2, [x1], #1
+    40080db0:	aa0003e4 	mov	x4, x0
+    for (const char * p = fmt; *p; p++) {
+    40080db4:	91000480 	add	x0, x4, #0x1
+    40080db8:	39400482 	ldrb	w2, [x4, #1]
+    40080dbc:	340005a2 	cbz	w2, 40080e70 <printf+0x2c4>
+        if (*p == '%') {
+    40080dc0:	7100945f 	cmp	w2, #0x25
+    40080dc4:	54ffff41 	b.ne	40080dac <printf+0x200>  // b.any
+            switch (*++p) {
+    40080dc8:	91000404 	add	x4, x0, #0x1
+    40080dcc:	39400400 	ldrb	w0, [x0, #1]
+    40080dd0:	7101cc1f 	cmp	w0, #0x73
+    40080dd4:	54fffa20 	b.eq	40080d18 <printf+0x16c>  // b.none
+    40080dd8:	54fff2a8 	b.hi	40080c2c <printf+0x80>  // b.pmore
+    40080ddc:	71018c1f 	cmp	w0, #0x63
+    40080de0:	54fff620 	b.eq	40080ca4 <printf+0xf8>  // b.none
+    40080de4:	7101901f 	cmp	w0, #0x64
+    40080de8:	54fffe61 	b.ne	40080db4 <printf+0x208>  // b.any
+                u = va_arg(ap, int);
+    40080dec:	b9402be2 	ldr	w2, [sp, #40]
+    40080df0:	f9400be0 	ldr	x0, [sp, #16]
+    40080df4:	37fff7e2 	tbnz	w2, #31, 40080cf0 <printf+0x144>
+    40080df8:	91002c02 	add	x2, x0, #0xb
+    40080dfc:	927df042 	and	x2, x2, #0xfffffffffffffff8
+    40080e00:	f9000be2 	str	x2, [sp, #16]
+    40080e04:	b9800003 	ldrsw	x3, [x0]
+                s = nbuf;
+    40080e08:	9100c3e5 	add	x5, sp, #0x30
+                    *s++ = '0' + u % 10;
+    40080e0c:	9bc87c60 	umulh	x0, x3, x8
+    40080e10:	d343fc00 	lsr	x0, x0, #3
+    40080e14:	8b000802 	add	x2, x0, x0, lsl #2
+    40080e18:	cb020462 	sub	x2, x3, x2, lsl #1
+    40080e1c:	1100c042 	add	w2, w2, #0x30
+    40080e20:	380014a2 	strb	w2, [x5], #1
+                    u /= 10;
+    40080e24:	aa0303e2 	mov	x2, x3
+    40080e28:	aa0003e3 	mov	x3, x0
+                } while (u);
+    40080e2c:	f100245f 	cmp	x2, #0x9
+    40080e30:	54fffee8 	b.hi	40080e0c <printf+0x260>  // b.pmore
+                while (s > nbuf)  *q++ = *--s;
+    40080e34:	eb0600bf 	cmp	x5, x6
+    40080e38:	54fffbe9 	b.ls	40080db4 <printf+0x208>  // b.plast
+                    *s++ = '0' + u % 10;
+    40080e3c:	aa0503e0 	mov	x0, x5
+                while (s > nbuf)  *q++ = *--s;
+    40080e40:	aa0103e2 	mov	x2, x1
+    40080e44:	385ffc03 	ldrb	w3, [x0, #-1]!
+    40080e48:	38001443 	strb	w3, [x2], #1
+    40080e4c:	eb06001f 	cmp	x0, x6
+    40080e50:	54ffffa1 	b.ne	40080e44 <printf+0x298>  // b.any
+    40080e54:	cb0600a5 	sub	x5, x5, x6
+    40080e58:	8b050021 	add	x1, x1, x5
+    40080e5c:	17ffffd6 	b	40080db4 <printf+0x208>
+                *q++ = 'x';
+    40080e60:	aa0503e1 	mov	x1, x5
+    40080e64:	17ffffd4 	b	40080db4 <printf+0x208>
+    char * q = buf;
+    40080e68:	90000021 	adrp	x1, 40084000 <eop_msg>
+    40080e6c:	91006021 	add	x1, x1, #0x18
+        }
+    }
+    *q = 0;
+    40080e70:	3900003f 	strb	wzr, [x1]
+
+    con_puts(buf);
+    40080e74:	90000020 	adrp	x0, 40084000 <eop_msg>
+    40080e78:	91006000 	add	x0, x0, #0x18
+    40080e7c:	97fffc74 	bl	4008004c <con_puts>
+
+    va_end(ap);
+    return rc;
+}
+    40080e80:	52800000 	mov	w0, #0x0                   	// #0
+    40080e84:	a8c97bfd 	ldp	x29, x30, [sp], #144
+    40080e88:	d65f03c0 	ret

@@ -99,12 +99,10 @@ def cpu_reg_update(self, newregs, mode):
     rdiff(7, 44, 'x26 %016x', 'x26',  newregs, self.regs)
     rdiff(7, 65, 'x27 %016x', 'x27',  newregs, self.regs)
     rdiff(8,  2, 'x28 %016x', 'x28',  newregs, self.regs)
-    rdiff(8, 23, 'x29 %016x', 'x29',  newregs, self.regs)
-    rdiff(8, 44, 'x30 %016x', 'x30',  newregs, self.regs)
-    rdiff(8, 72, 'cpsr %08x', 'cpsr', newregs, self.regs)
-
+    rdiff(8, 23, ' fp %016x', 'x29',  newregs, self.regs)
+    rdiff(8, 44, ' lr %016x', 'x30',  newregs, self.regs)
+    rdiff(8, 72, 'spsr %08x', 'cpsr', newregs, self.regs)
     rdiff(9,  2, ' sp %016x', 'sp',   newregs, self.regs)
-#   rdiff(4, 30, ' lr %08x',  'lr',   newregs, self.regs)
 
     # TODO: at one point I used this for XMM and ST regs - only displayed the
     #       non-zero regs - but it's all too much - need a slick way to deal
@@ -128,9 +126,33 @@ def cpu_reg_update(self, newregs, mode):
     fla += '%02x' % ((x&0xff0000)>>16)
     fla += '%02x' % ((x&0xff000000)>>24)
     flstr = DSfns['ds_print_one'](fla, ds_cpsr)[0]
-    strs.append((9, 43, '%44s' % flstr))
+    strs.append((9, 41, '%44s' % flstr))
 
     return strs
+
+""" exceptions
+#define EXCP_UDEF            1   /* undefined instruction */
+#define EXCP_SWI             2   /* software interrupt */
+#define EXCP_PREFETCH_ABORT  3
+#define EXCP_DATA_ABORT      4
+#define EXCP_IRQ             5
+#define EXCP_FIQ             6
+#define EXCP_BKPT            7
+#define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
+#define EXCP_KERNEL_TRAP     9   /* Jumped to kernel code page.  */
+#define EXCP_HVC            11   /* HyperVisor Call */
+#define EXCP_HYP_TRAP       12
+#define EXCP_SMC            13   /* Secure Monitor Call */
+#define EXCP_VIRQ           14
+#define EXCP_VFIQ           15
+#define EXCP_SEMIHOST       16   /* semihosting call */
+#define EXCP_NOCP           17   /* v7M NOCP UsageFault */
+#define EXCP_INVSTATE       18   /* v7M INVSTATE UsageFault */
+#define EXCP_STKOF          19   /* v8M STKOF UsageFault */
+#define EXCP_LAZYFP         20   /* v7M fault during lazy FP stacking */
+#define EXCP_LSERR          21   /* v8M LSERR SecureFault */
+#define EXCP_UNALIGNED      22   /* v7M UNALIGNED UsageFault */
+"""
 
 def get_seg_register(self):
     # for architectures that don't use segments, return either a 0
@@ -208,16 +230,27 @@ _cpsr_els = (
          DSVAL(0x00080000,0x00080000,' ge3'), DSVAL(0x00040000,0x00040000,' ge2'),
          DSVAL(0x00020000,0x00020000,' ge1'), DSVAL(0x00010000,0x00010000,' ge0'),
          DSVAL(0x00001000,0x00001000,' big'), DSVAL(0x00000800,0x00000800,' a'),
-         DSVAL(0x00000400,0x00000400,' i0'),  DSVAL(0x00000200,0x00000200,' f0'),
+         DSVAL(0x00000400,0x00000400,' i0?'), DSVAL(0x00000200,0x00000200,' d'),
+         DSVAL(0x00000100,0x00000100,' a'),   DSVAL(0x00000080,0x00000080,' i'),
+         DSVAL(0x00000040,0x00000040,' f'),
 
-         DSVAL(0x0000001f,0x0000000f,'\a sys\t'), DSVAL(0x0000001f,0x0000000e,'\r UND\t'),
-         DSVAL(0x0000001f,0x0000000d,'\r UND\t'), DSVAL(0x0000001f,0x0000000c,'\r UND\t'),
-         DSVAL(0x0000001f,0x0000000b,'\r und\t'), DSVAL(0x0000001f,0x0000000a,'\r UND\t'),
-         DSVAL(0x0000001f,0x00000009,'\r UND\t'), DSVAL(0x0000001f,0x00000008,'\r UND\t'),
-         DSVAL(0x0000001f,0x00000007,'\a abt\t'), DSVAL(0x0000001f,0x00000006,'\r UND\t'),
-         DSVAL(0x0000001f,0x00000005,'\r UND\t'), DSVAL(0x0000001f,0x00000004,'\r UND\t'),
-         DSVAL(0x0000001f,0x00000003,'\a sup\t'), DSVAL(0x0000001f,0x00000002,' irq'),
-         DSVAL(0x0000001f,0x00000001,' fiq',),    DSVAL(0x0000001f,0x00000000,' usr')]),
+         DSVAL(0x0000001f,0x0000001f,'\a sys\t'), DSVAL(0x0000001f,0x0000001e,'\r XXX\t'),
+         DSVAL(0x0000001f,0x0000001d,'\r XXX\t'), DSVAL(0x0000001f,0x0000001c,'\r XXX\t'),
+         DSVAL(0x0000001f,0x0000001b,'\r und\t'), DSVAL(0x0000001f,0x0000001a,'\b hyp\t'),
+         DSVAL(0x0000001f,0x00000019,'\r XXX\t'), DSVAL(0x0000001f,0x00000018,'\r XXX\t'),
+         DSVAL(0x0000001f,0x00000017,'\a abt\t'), DSVAL(0x0000001f,0x00000016,'\r XXX\t'),
+         DSVAL(0x0000001f,0x00000015,'\r XXX\t'), DSVAL(0x0000001f,0x00000014,'\r XXX\t'),
+         DSVAL(0x0000001f,0x00000013,'\a svc\t'), DSVAL(0x0000001f,0x00000012,' irq'),
+         DSVAL(0x0000001f,0x00000011,' fiq',),    DSVAL(0x0000001f,0x00000010,' usr'),
+
+         DSVAL(0x0000001f,0x0000000f,'\r xxx\t'), DSVAL(0x0000001f,0x0000000e,'\r xxx\t'),
+         DSVAL(0x0000001f,0x0000000d,' el3h'),    DSVAL(0x0000001f,0x0000000c,' el3t'),
+         DSVAL(0x0000001f,0x0000000b,'\r xxx\t'), DSVAL(0x0000001f,0x0000000a,'\r xxx\t'),
+         DSVAL(0x0000001f,0x00000009,' el2h'),    DSVAL(0x0000001f,0x00000008,' el2t'),
+         DSVAL(0x0000001f,0x00000007,'\r xxx\t'), DSVAL(0x0000001f,0x00000006,'\r xxx\t'),
+         DSVAL(0x0000001f,0x00000005,' el1h'),    DSVAL(0x0000001f,0x00000004,' el1t'),
+         DSVAL(0x0000001f,0x00000003,'\r xxx\t'), DSVAL(0x0000001f,0x00000002,'\r xxx'),
+         DSVAL(0x0000001f,0x00000001,'\r xxx',),  DSVAL(0x0000001f,0x00000000,' el0t')]),
 )
 
 ds_cpsr = DS('cpsr', 'program status register', 4, 1, 44, None, _cpsr_els)

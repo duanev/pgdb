@@ -1136,7 +1136,7 @@ def init_colors():
     CPnrm    = curses.color_pair(7)
     CPerr    = curses.color_pair(1)
     CPok     = curses.color_pair(2)
-    CPinfo   = curses.color_pair(4)
+    CPinfo   = curses.color_pair(6)
     CPdbg    = curses.color_pair(5)
     CPhi     = curses.color_pair(3)
     CPbdr    = curses.color_pair(2)

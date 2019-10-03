@@ -1,0 +1,81 @@
+
+main.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <exc_handler>:
+    "el32_sync", "el32_irq", "el32_fiq", "el32_serror"
+};
+
+void
+exc_handler(u64 vecno, u64 esr, u64 elr, u64 far)
+{
+   0:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+   4:	910003fd 	mov	x29, sp
+   8:	aa0203e4 	mov	x4, x2
+   c:	aa0303e5 	mov	x5, x3
+
+static inline u64
+armv8_get_tp(void)
+{
+    u64 tp;
+    asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
+  10:	d53bd048 	mrs	x8, tpidr_el0
+// where the thread local storage areas are defined in nui.ld, and
+// will only work after the tp has been established (in smp_init).
+static inline int
+core_id(void)
+{
+    return (armv8_get_tp() - TLS(0)) / (TLS(1) - TLS(0));
+  14:	90000006 	adrp	x6, 0 <_tls0>
+  18:	910000c7 	add	x7, x6, #0x0
+  1c:	cb070108 	sub	x8, x8, x7
+  20:	90000006 	adrp	x6, 0 <_tls1>
+  24:	910000c6 	add	x6, x6, #0x0
+  28:	cb0700c6 	sub	x6, x6, x7
+    printf("*** exc: %s cpu(%d) esr(%x) elr(%x) far(%x)\n",
+  2c:	aa0103e3 	mov	x3, x1
+  30:	9ac60902 	udiv	x2, x8, x6
+  34:	90000001 	adrp	x1, 0 <exc_handler>
+  38:	91000021 	add	x1, x1, #0x0
+  3c:	f8607821 	ldr	x1, [x1, x0, lsl #3]
+  40:	90000000 	adrp	x0, 0 <exc_handler>
+  44:	91000000 	add	x0, x0, #0x0
+  48:	94000000 	bl	0 <printf>
+            exc_vec_labels[vecno], core_id(), esr, elr, far);
+    stkdump();
+  4c:	94000000 	bl	0 <stkdump>
+}
+  50:	a8c17bfd 	ldp	x29, x30, [sp], #16
+  54:	d65f03c0 	ret
+
+0000000000000058 <main>:
+
+
+void
+main(int ac, char * av[])
+{
+  58:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+  5c:	910003fd 	mov	x29, sp
+    asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
+  60:	d5384241 	mrs	x1, currentel
+  64:	d342fc21 	lsr	x1, x1, #2
+    printf("smp v0.90 2019/09/21 el%d\n", armv8_get_el());
+  68:	90000000 	adrp	x0, 0 <exc_handler>
+  6c:	91000000 	add	x0, x0, #0x0
+  70:	94000000 	bl	0 <printf>
+
+    smp_init();
+  74:	94000000 	bl	0 <smp_init>
+
+    do {
+    } while (con_peek() == 0);
+  78:	94000000 	bl	0 <con_peek>
+  7c:	12001c00 	and	w0, w0, #0xff
+  80:	34ffffc0 	cbz	w0, 78 <main+0x20>
+    con_getc();
+  84:	94000000 	bl	0 <con_getc>
+}
+  88:	a8c17bfd 	ldp	x29, x30, [sp], #16
+  8c:	d65f03c0 	ret
