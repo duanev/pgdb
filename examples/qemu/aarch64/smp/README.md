@@ -1,5 +1,5 @@
 
-## To run with qemu, install qemu-system-aarch64 (v4.0.50 used here), then:
+## To run with qemu, install qemu-system-aarch64 (v4.1.0 used here), then:
 ```
 $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin -smp 8
 ```
@@ -26,14 +26,14 @@ $ python pgdb.py -gccmap examples/qemu/aarch64/smp/smp.map
     'j'     jump to new highlighted location, repeat jump to skip over ints and calls
 
 Use 'J' (capital J) when ready to unleash the slave cpus (or else
-they just sit at the start vector), and use 'S' to single step all
-of them (qemu will break on a random cpu - 'J' is better, qemu runs
-until your instruction is executed by any cpu), and 'C' to let all
-cpus free run.
+they just sit at the start vector), and use cap 'S' to single step
+all of them (qemu will break on a random cpu - so 'J' is better,
+qemu run until your breakpoint is hit by any cpu).  Use cap 'C' to
+let all cpus free run.
 
-You can quit without killing qemu with 'q', then restart pgdb and
-it will reload the current cpu state where you left off (good for
-debugging pgdb), or 'Q' to exit both and start over.
+You can quit pgdb without killing qemu with 'q', then restart pgdb
+and it will reload the current cpu state where you left off (good for
+debugging pgdb), or cap 'Q' to exit both.
 
 
 
@@ -52,11 +52,12 @@ ARMv8_PrgGuide_1189507856.pdf  pg 204  chapter 14  Multi-core processors
 
 
 
-## Get qemu to debug some errors
+## Get qemu to debug some errors, trace some events
 
 ```
 $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin -d guest_errors,unimp,in_asm -s -S
 ```
 
 Press any key in the qemu virtual terminal to reboot the simulated machine.
-(smp thread 0, the boot thread, is polling on the uart rx status)
+(smp thread 0, the boot thread, is polling on the uart rx status)  MAX_CPUS
+is fixed at 8 (thats all that qemu-system-aarch64 currently supports).

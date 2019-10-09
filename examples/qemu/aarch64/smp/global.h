@@ -129,9 +129,7 @@ get_thread_data(void)
     return (struct thread *)armv8_get_tp();
 }
 
-// compute the core id from the tp value - this assumes knowledge of
-// where the thread local storage areas are defined in nui.ld, and
-// will only work after the tp has been established (in smp_init).
+// will only work after tp has been established (in smp_init)
 static inline int
 cpu_id(void)
 {
