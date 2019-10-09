@@ -7,11 +7,10 @@
 
 #include "types.h"
 
-// A multi-consumer / single producer based on the 'take a ticket'
-// system found in stores/post-offices where people wait in a
-// first-come first-served order.   spin-lock performance
-// optimizations are included.
-
+// A multi-consumer / single producer queue based on the
+// 'take a ticket' system found in stores/post-offices
+// where people wait in a first-come first-served order.
+// spin-lock performance optimizations are included.
 //
 // When a new consumer arrives (to ship a package...) it takes
 // the next consumer ticket and waits for 'now serving ticket X',

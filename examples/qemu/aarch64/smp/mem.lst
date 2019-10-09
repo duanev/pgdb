@@ -1,0 +1,584 @@
+
+mem.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <bitmap_create>:
+#define BLK_SIZE        (sizeof(u64) * BITS_PER_BYTE)
+
+void
+bitmap_create(struct bitmap * map, int size)
+{
+    map->nblks = (size + BLK_SIZE - 1) / BLK_SIZE;
+   0:	93407c21 	sxtw	x1, w1
+   4:	9100fc21 	add	x1, x1, #0x3f
+   8:	d346fc21 	lsr	x1, x1, #6
+   c:	b9000001 	str	w1, [x0]
+    map->count = 0;
+  10:	b900041f 	str	wzr, [x0, #4]
+    return;
+}
+  14:	d65f03c0 	ret
+
+0000000000000018 <bitmap_set>:
+void
+bitmap_set(struct bitmap * map, int n)
+{
+    int blk = n / BLK_SIZE;
+    int bit = n % BLK_SIZE;
+    if ((map->blks[blk] & (1UL << bit)) == 0) {
+  18:	93467c22 	sbfx	x2, x1, #6, #26
+  1c:	8b020c02 	add	x2, x0, x2, lsl #3
+  20:	f9400444 	ldr	x4, [x2, #8]
+  24:	d2800023 	mov	x3, #0x1                   	// #1
+  28:	9ac12061 	lsl	x1, x3, x1
+  2c:	ea01009f 	tst	x4, x1
+  30:	540000c1 	b.ne	48 <bitmap_set+0x30>  // b.any
+        map->blks[blk] |= (1UL << bit);
+  34:	aa010081 	orr	x1, x4, x1
+  38:	f9000441 	str	x1, [x2, #8]
+        map->count++;
+  3c:	b9400401 	ldr	w1, [x0, #4]
+  40:	11000421 	add	w1, w1, #0x1
+  44:	b9000401 	str	w1, [x0, #4]
+    }
+}
+  48:	d65f03c0 	ret
+
+000000000000004c <bitmap_clear>:
+void
+bitmap_clear(struct bitmap * map, int n)
+{
+    int blk = n / BLK_SIZE;
+    int bit = n % BLK_SIZE;
+    if (map->blks[blk] & (1UL << bit)) {
+  4c:	93467c23 	sbfx	x3, x1, #6, #26
+  50:	8b030c03 	add	x3, x0, x3, lsl #3
+  54:	f9400464 	ldr	x4, [x3, #8]
+  58:	d2800022 	mov	x2, #0x1                   	// #1
+  5c:	9ac12041 	lsl	x1, x2, x1
+  60:	ea01009f 	tst	x4, x1
+  64:	540000c0 	b.eq	7c <bitmap_clear+0x30>  // b.none
+        map->blks[blk] &= ~(1UL << bit);
+  68:	8a210081 	bic	x1, x4, x1
+  6c:	f9000461 	str	x1, [x3, #8]
+        map->count--;
+  70:	b9400401 	ldr	w1, [x0, #4]
+  74:	51000421 	sub	w1, w1, #0x1
+  78:	b9000401 	str	w1, [x0, #4]
+    }
+}
+  7c:	d65f03c0 	ret
+
+0000000000000080 <bitmap_first_1_free>:
+bitmap_first_1_free(struct bitmap * map)
+{
+    int blk;
+    int bit;
+
+    for (blk = 0; blk < map->nblks; blk++)
+  80:	b9400008 	ldr	w8, [x0]
+  84:	7100011f 	cmp	w8, #0x0
+  88:	5400036d 	b.le	f4 <bitmap_first_1_free+0x74>
+  8c:	d2800005 	mov	x5, #0x0                   	// #0
+        if (map->blks[blk] != ALL_BITS_ON)
+  90:	91002006 	add	x6, x0, #0x8
+            for (bit = 0; bit < BLK_SIZE; bit++)
+                if ((map->blks[blk] & (1UL << bit)) == 0)
+  94:	d2800024 	mov	x4, #0x1                   	// #1
+  98:	14000007 	b	b4 <bitmap_first_1_free+0x34>
+            for (bit = 0; bit < BLK_SIZE; bit++)
+  9c:	52800000 	mov	w0, #0x0                   	// #0
+                    return blk * BLK_SIZE + bit;
+  a0:	0b071800 	add	w0, w0, w7, lsl #6
+    return -1;
+}
+  a4:	d65f03c0 	ret
+    for (blk = 0; blk < map->nblks; blk++)
+  a8:	910004a5 	add	x5, x5, #0x1
+  ac:	6b05011f 	cmp	w8, w5
+  b0:	540001ed 	b.le	ec <bitmap_first_1_free+0x6c>
+  b4:	2a0503e7 	mov	w7, w5
+        if (map->blks[blk] != ALL_BITS_ON)
+  b8:	f86578c3 	ldr	x3, [x6, x5, lsl #3]
+  bc:	b100047f 	cmn	x3, #0x1
+  c0:	54ffff40 	b.eq	a8 <bitmap_first_1_free+0x28>  // b.none
+                if ((map->blks[blk] & (1UL << bit)) == 0)
+  c4:	3607fec3 	tbz	w3, #0, 9c <bitmap_first_1_free+0x1c>
+            for (bit = 0; bit < BLK_SIZE; bit++)
+  c8:	52800021 	mov	w1, #0x1                   	// #1
+  cc:	2a0103e0 	mov	w0, w1
+                if ((map->blks[blk] & (1UL << bit)) == 0)
+  d0:	9ac12082 	lsl	x2, x4, x1
+  d4:	ea03005f 	tst	x2, x3
+  d8:	54fffe40 	b.eq	a0 <bitmap_first_1_free+0x20>  // b.none
+            for (bit = 0; bit < BLK_SIZE; bit++)
+  dc:	11000421 	add	w1, w1, #0x1
+  e0:	7101003f 	cmp	w1, #0x40
+  e4:	54ffff41 	b.ne	cc <bitmap_first_1_free+0x4c>  // b.any
+  e8:	17fffff0 	b	a8 <bitmap_first_1_free+0x28>
+    return -1;
+  ec:	12800000 	mov	w0, #0xffffffff            	// #-1
+  f0:	17ffffed 	b	a4 <bitmap_first_1_free+0x24>
+  f4:	12800000 	mov	w0, #0xffffffff            	// #-1
+  f8:	17ffffeb 	b	a4 <bitmap_first_1_free+0x24>
+
+00000000000000fc <bitmap_first_n_free>:
+ * find the index of the first N free objects,
+ * -1 means no N contiguous objects
+ */
+int
+bitmap_first_n_free(struct bitmap * map, int n)
+{
+  fc:	aa0003ea 	mov	x10, x0
+    int blk;
+    int bit;
+    int i = 0;
+    int idx = -1;
+
+    for (blk = 0; blk < map->nblks; blk++)
+ 100:	b940000b 	ldr	w11, [x0]
+ 104:	7100017f 	cmp	w11, #0x0
+ 108:	5400044d 	b.le	190 <bitmap_first_n_free+0x94>
+ 10c:	d2800009 	mov	x9, #0x0                   	// #0
+    int idx = -1;
+ 110:	12800000 	mov	w0, #0xffffffff            	// #-1
+    int i = 0;
+ 114:	52800003 	mov	w3, #0x0                   	// #0
+        if (map->blks[blk] != ALL_BITS_ON)
+ 118:	9100214a 	add	x10, x10, #0x8
+            for (bit = 0; bit < BLK_SIZE; bit++)
+                if ((map->blks[blk] & (1UL << bit)) == 0) {
+ 11c:	d2800026 	mov	x6, #0x1                   	// #1
+                        idx = blk * BLK_SIZE + bit;
+                    i++;
+                    if (i >= n)
+                        return idx;
+                } else {
+                    idx = -1;
+ 120:	2a0003e8 	mov	w8, w0
+ 124:	14000013 	b	170 <bitmap_first_n_free+0x74>
+ 128:	2a0803e0 	mov	w0, w8
+                    i = 0;
+ 12c:	52800003 	mov	w3, #0x0                   	// #0
+            for (bit = 0; bit < BLK_SIZE; bit++)
+ 130:	11000442 	add	w2, w2, #0x1
+ 134:	7101005f 	cmp	w2, #0x40
+ 138:	54000160 	b.eq	164 <bitmap_first_n_free+0x68>  // b.none
+                if ((map->blks[blk] & (1UL << bit)) == 0) {
+ 13c:	9ac220c4 	lsl	x4, x6, x2
+ 140:	ea05009f 	tst	x4, x5
+ 144:	54ffff21 	b.ne	128 <bitmap_first_n_free+0x2c>  // b.any
+                    if (idx == -1)
+ 148:	0b070044 	add	w4, w2, w7
+ 14c:	3100041f 	cmn	w0, #0x1
+ 150:	1a800080 	csel	w0, w4, w0, eq  // eq = none
+                    i++;
+ 154:	11000463 	add	w3, w3, #0x1
+                    if (i >= n)
+ 158:	6b01007f 	cmp	w3, w1
+ 15c:	54fffeab 	b.lt	130 <bitmap_first_n_free+0x34>  // b.tstop
+                }
+    return -1;
+}
+ 160:	d65f03c0 	ret
+    for (blk = 0; blk < map->nblks; blk++)
+ 164:	91000529 	add	x9, x9, #0x1
+ 168:	6b09017f 	cmp	w11, w9
+ 16c:	540000ed 	b.le	188 <bitmap_first_n_free+0x8c>
+        if (map->blks[blk] != ALL_BITS_ON)
+ 170:	f8697945 	ldr	x5, [x10, x9, lsl #3]
+ 174:	b10004bf 	cmn	x5, #0x1
+ 178:	54ffff60 	b.eq	164 <bitmap_first_n_free+0x68>  // b.none
+            for (bit = 0; bit < BLK_SIZE; bit++)
+ 17c:	531a6527 	lsl	w7, w9, #6
+ 180:	52800002 	mov	w2, #0x0                   	// #0
+ 184:	17ffffee 	b	13c <bitmap_first_n_free+0x40>
+    return -1;
+ 188:	12800000 	mov	w0, #0xffffffff            	// #-1
+ 18c:	17fffff5 	b	160 <bitmap_first_n_free+0x64>
+ 190:	12800000 	mov	w0, #0xffffffff            	// #-1
+ 194:	17fffff3 	b	160 <bitmap_first_n_free+0x64>
+
+0000000000000198 <mem_alloc>:
+/*
+ * the caller must remember what N was ...
+ */
+u64
+mem_alloc(struct mem_pool * pool, int n)
+{
+ 198:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+ 19c:	910003fd 	mov	x29, sp
+ 1a0:	a90363f7 	stp	x23, x24, [sp, #48]
+    if (pool == 0) {
+ 1a4:	b4000780 	cbz	x0, 294 <mem_alloc+0xfc>
+ 1a8:	a90153f3 	stp	x19, x20, [sp, #16]
+ 1ac:	a9025bf5 	stp	x21, x22, [sp, #32]
+ 1b0:	aa0003f3 	mov	x19, x0
+ 1b4:	2a0103f5 	mov	w21, w1
+        stkdump();
+        return 0;
+    }
+
+    u32 token;
+    wait_for_token(pool, token);
+ 1b8:	90000000 	adrp	x0, 0 <bitmap_create>
+ 1bc:	91000000 	add	x0, x0, #0x0
+ 1c0:	91010000 	add	x0, x0, #0x40
+ 1c4:	885f7c03 	ldxr	w3, [x0]
+ 1c8:	11000461 	add	w1, w3, #0x1
+ 1cc:	8802fc01 	stlxr	w2, w1, [x0]
+ 1d0:	35ffffa2 	cbnz	w2, 1c4 <mem_alloc+0x2c>
+ 1d4:	d5033bbf 	dmb	ish
+ 1d8:	12000877 	and	w23, w3, #0x7
+ 1dc:	90000004 	adrp	x4, 0 <bitmap_create>
+ 1e0:	91000084 	add	x4, x4, #0x0
+ 1e4:	92400863 	and	x3, x3, #0x7
+ 1e8:	f8637882 	ldr	x2, [x4, x3, lsl #3]
+ 1ec:	b4ffffe2 	cbz	x2, 1e8 <mem_alloc+0x50>
+ 1f0:	2a1703e1 	mov	w1, w23
+ 1f4:	90000000 	adrp	x0, 0 <bitmap_create>
+ 1f8:	91000000 	add	x0, x0, #0x0
+ 1fc:	f821781f 	str	xzr, [x0, x1, lsl #3]
+ 200:	110006f7 	add	w23, w23, #0x1
+    int idx = bitmap_first_n_free(&pool->map, n);
+ 204:	91008276 	add	x22, x19, #0x20
+ 208:	2a1503e1 	mov	w1, w21
+ 20c:	aa1603e0 	mov	x0, x22
+ 210:	94000000 	bl	fc <bitmap_first_n_free>
+    if (idx == -1) {
+ 214:	3100041f 	cmn	w0, #0x1
+ 218:	540004a0 	b.eq	2ac <mem_alloc+0x114>  // b.none
+        return_token(pool, token);
+        printf("mem_alloc error: pool map %s is full\n", pool->name);
+        stkdump();
+        return 0;
+    }
+    u64 addr = idx * pool->usize + pool->base;
+ 21c:	f9400a62 	ldr	x2, [x19, #16]
+ 220:	f9400261 	ldr	x1, [x19]
+ 224:	93407c18 	sxtw	x24, w0
+ 228:	9b020718 	madd	x24, x24, x2, x1
+    // bitmap_first_n_free can run off the end, double check the addr
+    if (addr > pool->base + pool->size - pool->usize) {
+ 22c:	f9400663 	ldr	x3, [x19, #8]
+ 230:	8b030021 	add	x1, x1, x3
+ 234:	cb020021 	sub	x1, x1, x2
+ 238:	eb18003f 	cmp	x1, x24
+ 23c:	54000543 	b.cc	2e4 <mem_alloc+0x14c>  // b.lo, b.ul, b.last
+        printf("mem_alloc error: pool %s is empty\n", pool->name);
+        stkdump();
+        return 0;
+    }
+
+    for (int i = 0; i < n; i++)
+ 240:	2a0003f3 	mov	w19, w0
+ 244:	0b0002b4 	add	w20, w21, w0
+ 248:	710002bf 	cmp	w21, #0x0
+ 24c:	540000ed 	b.le	268 <mem_alloc+0xd0>
+        bitmap_set(&pool->map, idx + i);
+ 250:	2a1303e1 	mov	w1, w19
+ 254:	aa1603e0 	mov	x0, x22
+ 258:	94000000 	bl	18 <bitmap_set>
+    for (int i = 0; i < n; i++)
+ 25c:	11000673 	add	w19, w19, #0x1
+ 260:	6b14027f 	cmp	w19, w20
+ 264:	54ffff61 	b.ne	250 <mem_alloc+0xb8>  // b.any
+    return_token(pool, token);
+ 268:	92400af7 	and	x23, x23, #0x7
+ 26c:	90000000 	adrp	x0, 0 <bitmap_create>
+ 270:	91000000 	add	x0, x0, #0x0
+ 274:	d2800021 	mov	x1, #0x1                   	// #1
+ 278:	f8377801 	str	x1, [x0, x23, lsl #3]
+ 27c:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 280:	a9425bf5 	ldp	x21, x22, [sp, #32]
+
+    return addr;
+}
+ 284:	aa1803e0 	mov	x0, x24
+ 288:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 28c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+ 290:	d65f03c0 	ret
+        printf("mem_alloc error: pool uninitialized\n");
+ 294:	90000000 	adrp	x0, 0 <bitmap_create>
+ 298:	91000000 	add	x0, x0, #0x0
+ 29c:	94000000 	bl	0 <printf>
+        stkdump();
+ 2a0:	94000000 	bl	0 <stkdump>
+        return 0;
+ 2a4:	d2800018 	mov	x24, #0x0                   	// #0
+ 2a8:	17fffff7 	b	284 <mem_alloc+0xec>
+        return_token(pool, token);
+ 2ac:	92400af7 	and	x23, x23, #0x7
+ 2b0:	90000000 	adrp	x0, 0 <bitmap_create>
+ 2b4:	91000000 	add	x0, x0, #0x0
+ 2b8:	d2800021 	mov	x1, #0x1                   	// #1
+ 2bc:	f8377801 	str	x1, [x0, x23, lsl #3]
+        printf("mem_alloc error: pool map %s is full\n", pool->name);
+ 2c0:	f9400e61 	ldr	x1, [x19, #24]
+ 2c4:	90000000 	adrp	x0, 0 <bitmap_create>
+ 2c8:	91000000 	add	x0, x0, #0x0
+ 2cc:	94000000 	bl	0 <printf>
+        stkdump();
+ 2d0:	94000000 	bl	0 <stkdump>
+        return 0;
+ 2d4:	d2800018 	mov	x24, #0x0                   	// #0
+ 2d8:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 2dc:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 2e0:	17ffffe9 	b	284 <mem_alloc+0xec>
+        return_token(pool, token);
+ 2e4:	92400af7 	and	x23, x23, #0x7
+ 2e8:	90000000 	adrp	x0, 0 <bitmap_create>
+ 2ec:	91000000 	add	x0, x0, #0x0
+ 2f0:	d2800021 	mov	x1, #0x1                   	// #1
+ 2f4:	f8377801 	str	x1, [x0, x23, lsl #3]
+        printf("mem_alloc error: pool %s is empty\n", pool->name);
+ 2f8:	f9400e61 	ldr	x1, [x19, #24]
+ 2fc:	90000000 	adrp	x0, 0 <bitmap_create>
+ 300:	91000000 	add	x0, x0, #0x0
+ 304:	94000000 	bl	0 <printf>
+        stkdump();
+ 308:	94000000 	bl	0 <stkdump>
+        return 0;
+ 30c:	d2800018 	mov	x24, #0x0                   	// #0
+ 310:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 314:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 318:	17ffffdb 	b	284 <mem_alloc+0xec>
+
+000000000000031c <mem_free>:
+
+void
+mem_free(struct mem_pool * pool, u64 addr, int n)
+{
+ 31c:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
+ 320:	910003fd 	mov	x29, sp
+ 324:	a90153f3 	stp	x19, x20, [sp, #16]
+ 328:	aa0003f4 	mov	x20, x0
+ 32c:	aa0103f3 	mov	x19, x1
+    if (addr < pool->base  ||  addr >= pool->base + pool->size) {
+ 330:	f9400000 	ldr	x0, [x0]
+ 334:	eb01001f 	cmp	x0, x1
+ 338:	54000108 	b.hi	358 <mem_free+0x3c>  // b.pmore
+ 33c:	a9025bf5 	stp	x21, x22, [sp, #32]
+ 340:	2a0203f5 	mov	w21, w2
+ 344:	f9400681 	ldr	x1, [x20, #8]
+ 348:	8b010000 	add	x0, x0, x1
+ 34c:	eb13001f 	cmp	x0, x19
+ 350:	54000168 	b.hi	37c <mem_free+0x60>  // b.pmore
+ 354:	a9425bf5 	ldp	x21, x22, [sp, #32]
+        printf("mem_free error: 0x%lx is not within pool %s\n", addr, pool->name);
+ 358:	f9400e82 	ldr	x2, [x20, #24]
+ 35c:	aa1303e1 	mov	x1, x19
+ 360:	90000000 	adrp	x0, 0 <bitmap_create>
+ 364:	91000000 	add	x0, x0, #0x0
+ 368:	94000000 	bl	0 <printf>
+        stkdump();
+ 36c:	94000000 	bl	0 <stkdump>
+    u32 token;
+    wait_for_token(pool, token);
+    for (int i = 0; i < n; i++)
+        bitmap_clear(&pool->map, idx + i);
+    return_token(pool, token);
+}
+ 370:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 374:	a8c37bfd 	ldp	x29, x30, [sp], #48
+ 378:	d65f03c0 	ret
+    memset((void *)addr, 0, pool->usize * n);
+ 37c:	93407c40 	sxtw	x0, w2
+ 380:	f9400a82 	ldr	x2, [x20, #16]
+ 384:	9b027c02 	mul	x2, x0, x2
+ 388:	52800001 	mov	w1, #0x0                   	// #0
+ 38c:	aa1303e0 	mov	x0, x19
+ 390:	94000000 	bl	0 <memset>
+    int idx = (addr - pool->base) / pool->usize;
+ 394:	f9400281 	ldr	x1, [x20]
+ 398:	cb010273 	sub	x19, x19, x1
+ 39c:	f9400a81 	ldr	x1, [x20, #16]
+ 3a0:	9ac10a61 	udiv	x1, x19, x1
+    wait_for_token(pool, token);
+ 3a4:	90000000 	adrp	x0, 0 <bitmap_create>
+ 3a8:	91000000 	add	x0, x0, #0x0
+ 3ac:	91010000 	add	x0, x0, #0x40
+ 3b0:	885f7c02 	ldxr	w2, [x0]
+ 3b4:	11000443 	add	w3, w2, #0x1
+ 3b8:	8804fc03 	stlxr	w4, w3, [x0]
+ 3bc:	35ffffa4 	cbnz	w4, 3b0 <mem_free+0x94>
+ 3c0:	d5033bbf 	dmb	ish
+ 3c4:	12000844 	and	w4, w2, #0x7
+ 3c8:	90000003 	adrp	x3, 0 <bitmap_create>
+ 3cc:	91000063 	add	x3, x3, #0x0
+ 3d0:	92400842 	and	x2, x2, #0x7
+ 3d4:	f8627860 	ldr	x0, [x3, x2, lsl #3]
+ 3d8:	b4ffffe0 	cbz	x0, 3d4 <mem_free+0xb8>
+ 3dc:	2a0403e2 	mov	w2, w4
+ 3e0:	90000000 	adrp	x0, 0 <bitmap_create>
+ 3e4:	91000000 	add	x0, x0, #0x0
+ 3e8:	f822781f 	str	xzr, [x0, x2, lsl #3]
+ 3ec:	11000496 	add	w22, w4, #0x1
+    for (int i = 0; i < n; i++)
+ 3f0:	710002bf 	cmp	w21, #0x0
+ 3f4:	5400014d 	b.le	41c <mem_free+0x100>
+ 3f8:	2a0103f3 	mov	w19, w1
+ 3fc:	0b0102b5 	add	w21, w21, w1
+        bitmap_clear(&pool->map, idx + i);
+ 400:	91008294 	add	x20, x20, #0x20
+ 404:	2a1303e1 	mov	w1, w19
+ 408:	aa1403e0 	mov	x0, x20
+ 40c:	94000000 	bl	4c <bitmap_clear>
+    for (int i = 0; i < n; i++)
+ 410:	11000673 	add	w19, w19, #0x1
+ 414:	6b15027f 	cmp	w19, w21
+ 418:	54ffff61 	b.ne	404 <mem_free+0xe8>  // b.any
+    return_token(pool, token);
+ 41c:	92400ac4 	and	x4, x22, #0x7
+ 420:	90000000 	adrp	x0, 0 <bitmap_create>
+ 424:	91000000 	add	x0, x0, #0x0
+ 428:	d2800021 	mov	x1, #0x1                   	// #1
+ 42c:	f8247801 	str	x1, [x0, x4, lsl #3]
+ 430:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 434:	17ffffcf 	b	370 <mem_free+0x54>
+
+0000000000000438 <mem_pool_create>:
+
+
+struct mem_pool *
+mem_pool_create(char * name, u64 base, u64 size, u64 usize)
+{
+ 438:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+ 43c:	910003fd 	mov	x29, sp
+ 440:	a90153f3 	stp	x19, x20, [sp, #16]
+ 444:	a9025bf5 	stp	x21, x22, [sp, #32]
+ 448:	a90363f7 	stp	x23, x24, [sp, #48]
+ 44c:	aa0003f6 	mov	x22, x0
+ 450:	aa0203f4 	mov	x20, x2
+ 454:	aa0303f3 	mov	x19, x3
+    // the first block is reserved for the pool data structure
+    struct mem_pool * pool = (struct mem_pool *)base;
+
+    if (size < usize * 2) {
+ 458:	eb03045f 	cmp	x2, x3, lsl #1
+ 45c:	54000583 	b.cc	50c <mem_pool_create+0xd4>  // b.lo, b.ul, b.last
+ 460:	aa0103f5 	mov	x21, x1
+        printf("mem_pool_create error: size (%ld) must mimally be 2x unit size (only %ld)\n",
+                name, size, usize);
+        stkdump();
+        return 0;
+    }
+    if (n_bits_set(size) != 1) {
+ 464:	aa0203e0 	mov	x0, x2
+ 468:	94000000 	bl	0 <n_bits_set>
+ 46c:	7100041f 	cmp	w0, #0x1
+ 470:	540005c1 	b.ne	528 <mem_pool_create+0xf0>  // b.any
+        printf("mem_pool_create error: size must be a power of 2 (%d)\n", size);
+        stkdump();
+        return 0;
+    }
+    if (n_bits_set(usize) != 1) {
+ 474:	aa1303e0 	mov	x0, x19
+ 478:	94000000 	bl	0 <n_bits_set>
+ 47c:	7100041f 	cmp	w0, #0x1
+ 480:	54000621 	b.ne	544 <mem_pool_create+0x10c>  // b.any
+    struct mem_pool * pool = (struct mem_pool *)base;
+ 484:	aa1503f7 	mov	x23, x21
+        printf("mem_pool_create error: usize must be a power of 2 (%d)\n", usize);
+        stkdump();
+        return 0;
+    }
+
+    pool->base  = base + usize;
+ 488:	8b1302a0 	add	x0, x21, x19
+ 48c:	f90002a0 	str	x0, [x21]
+    pool->size  = size - usize;
+ 490:	cb130294 	sub	x20, x20, x19
+ 494:	f90006b4 	str	x20, [x21, #8]
+    pool->name  = name;
+ 498:	f9000eb6 	str	x22, [x21, #24]
+    pool->usize = usize;
+ 49c:	f9000ab3 	str	x19, [x21, #16]
+
+    int n_units = pool->size / pool->usize;
+ 4a0:	9ad30a94 	udiv	x20, x20, x19
+ 4a4:	2a1403f8 	mov	w24, w20
+    int max_nblks = (usize - sizeof(struct mem_pool)) / sizeof(u64) * BITS_PER_BYTE;
+ 4a8:	5100a273 	sub	w19, w19, #0x28
+ 4ac:	121d7273 	and	w19, w19, #0xfffffff8
+    if (max_nblks < n_units) {
+ 4b0:	6b13029f 	cmp	w20, w19
+ 4b4:	5400056c 	b.gt	560 <mem_pool_create+0x128>
+        printf("mem_pool_create warning: limiting size to %d units (to fit bitmap)\n", max_nblks);
+        n_units    = max_nblks;
+        pool->size = pool->usize * n_units;
+    }
+
+    memset((void *)(pool->map.blks), 0, max_nblks * BLK_SIZE);
+ 4b8:	937a7e62 	sbfiz	x2, x19, #6, #32
+ 4bc:	52800001 	mov	w1, #0x0                   	// #0
+ 4c0:	9100a2a0 	add	x0, x21, #0x28
+ 4c4:	94000000 	bl	0 <memset>
+    map->nblks = (size + BLK_SIZE - 1) / BLK_SIZE;
+ 4c8:	93407f00 	sxtw	x0, w24
+ 4cc:	9100fc00 	add	x0, x0, #0x3f
+ 4d0:	d346fc00 	lsr	x0, x0, #6
+ 4d4:	b90022a0 	str	w0, [x21, #32]
+    map->count = 0;
+ 4d8:	b90026bf 	str	wzr, [x21, #36]
+    bitmap_create(&pool->map, n_units);
+    printf("mem_pool %s at 0x%lx   %d units\n", name, pool, n_units);
+ 4dc:	2a1803e3 	mov	w3, w24
+ 4e0:	aa1503e2 	mov	x2, x21
+ 4e4:	aa1603e1 	mov	x1, x22
+ 4e8:	90000000 	adrp	x0, 0 <bitmap_create>
+ 4ec:	91000000 	add	x0, x0, #0x0
+ 4f0:	94000000 	bl	0 <printf>
+    return pool;
+}
+ 4f4:	aa1703e0 	mov	x0, x23
+ 4f8:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 4fc:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 500:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 504:	a8c47bfd 	ldp	x29, x30, [sp], #64
+ 508:	d65f03c0 	ret
+        printf("mem_pool_create error: size (%ld) must mimally be 2x unit size (only %ld)\n",
+ 50c:	aa0003e1 	mov	x1, x0
+ 510:	90000000 	adrp	x0, 0 <bitmap_create>
+ 514:	91000000 	add	x0, x0, #0x0
+ 518:	94000000 	bl	0 <printf>
+        stkdump();
+ 51c:	94000000 	bl	0 <stkdump>
+        return 0;
+ 520:	d2800017 	mov	x23, #0x0                   	// #0
+ 524:	17fffff4 	b	4f4 <mem_pool_create+0xbc>
+        printf("mem_pool_create error: size must be a power of 2 (%d)\n", size);
+ 528:	aa1403e1 	mov	x1, x20
+ 52c:	90000000 	adrp	x0, 0 <bitmap_create>
+ 530:	91000000 	add	x0, x0, #0x0
+ 534:	94000000 	bl	0 <printf>
+        stkdump();
+ 538:	94000000 	bl	0 <stkdump>
+        return 0;
+ 53c:	d2800017 	mov	x23, #0x0                   	// #0
+ 540:	17ffffed 	b	4f4 <mem_pool_create+0xbc>
+        printf("mem_pool_create error: usize must be a power of 2 (%d)\n", usize);
+ 544:	aa1303e1 	mov	x1, x19
+ 548:	90000000 	adrp	x0, 0 <bitmap_create>
+ 54c:	91000000 	add	x0, x0, #0x0
+ 550:	94000000 	bl	0 <printf>
+        stkdump();
+ 554:	94000000 	bl	0 <stkdump>
+        return 0;
+ 558:	d2800017 	mov	x23, #0x0                   	// #0
+ 55c:	17ffffe6 	b	4f4 <mem_pool_create+0xbc>
+        printf("mem_pool_create warning: limiting size to %d units (to fit bitmap)\n", max_nblks);
+ 560:	2a1303e1 	mov	w1, w19
+ 564:	90000000 	adrp	x0, 0 <bitmap_create>
+ 568:	91000000 	add	x0, x0, #0x0
+ 56c:	94000000 	bl	0 <printf>
+        pool->size = pool->usize * n_units;
+ 570:	93407e60 	sxtw	x0, w19
+ 574:	f9400aa1 	ldr	x1, [x21, #16]
+ 578:	9b007c20 	mul	x0, x1, x0
+ 57c:	f90006a0 	str	x0, [x21, #8]
+        n_units    = max_nblks;
+ 580:	2a1303f8 	mov	w24, w19
+ 584:	17ffffcd 	b	4b8 <mem_pool_create+0x80>

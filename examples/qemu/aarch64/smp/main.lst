@@ -21,61 +21,103 @@ armv8_get_tp(void)
 {
     u64 tp;
     asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
-  10:	d53bd048 	mrs	x8, tpidr_el0
-// where the thread local storage areas are defined in nui.ld, and
-// will only work after the tp has been established (in smp_init).
-static inline int
-core_id(void)
-{
-    return (armv8_get_tp() - TLS(0)) / (TLS(1) - TLS(0));
-  14:	90000006 	adrp	x6, 0 <_tls0>
-  18:	910000c7 	add	x7, x6, #0x0
-  1c:	cb070108 	sub	x8, x8, x7
-  20:	90000006 	adrp	x6, 0 <_tls1>
-  24:	910000c6 	add	x6, x6, #0x0
-  28:	cb0700c6 	sub	x6, x6, x7
-    printf("*** exc: %s cpu(%d) esr(%x) elr(%x) far(%x)\n",
-  2c:	aa0103e3 	mov	x3, x1
-  30:	9ac60902 	udiv	x2, x8, x6
-  34:	90000001 	adrp	x1, 0 <exc_handler>
-  38:	91000021 	add	x1, x1, #0x0
-  3c:	f8607821 	ldr	x1, [x1, x0, lsl #3]
-  40:	90000000 	adrp	x0, 0 <exc_handler>
-  44:	91000000 	add	x0, x0, #0x0
-  48:	94000000 	bl	0 <printf>
-            exc_vec_labels[vecno], core_id(), esr, elr, far);
+  10:	d53bd046 	mrs	x6, tpidr_el0
+    printf("*** exc: cpu(%d) %s esr(%lx) elr(%lx) far(%lx)\n",
+  14:	aa0103e3 	mov	x3, x1
+  18:	90000001 	adrp	x1, 0 <exc_handler>
+  1c:	91000021 	add	x1, x1, #0x0
+  20:	f8607822 	ldr	x2, [x1, x0, lsl #3]
+  24:	b94008c1 	ldr	w1, [x6, #8]
+  28:	90000000 	adrp	x0, 0 <exc_handler>
+  2c:	91000000 	add	x0, x0, #0x0
+  30:	94000000 	bl	0 <printf>
+            cpu_id(), exc_vec_labels[vecno], esr, elr, far);
     stkdump();
-  4c:	94000000 	bl	0 <stkdump>
+  34:	94000000 	bl	0 <stkdump>
 }
-  50:	a8c17bfd 	ldp	x29, x30, [sp], #16
-  54:	d65f03c0 	ret
+  38:	a8c17bfd 	ldp	x29, x30, [sp], #16
+  3c:	d65f03c0 	ret
 
-0000000000000058 <main>:
+0000000000000040 <main>:
 
+extern int _free_mem;
 
 void
 main(int ac, char * av[])
 {
-  58:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
-  5c:	910003fd 	mov	x29, sp
+  40:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+  44:	910003fd 	mov	x29, sp
     asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
-  60:	d5384241 	mrs	x1, currentel
-  64:	d342fc21 	lsr	x1, x1, #2
-    printf("smp v0.90 2019/09/21 el%d\n", armv8_get_el());
-  68:	90000000 	adrp	x0, 0 <exc_handler>
-  6c:	91000000 	add	x0, x0, #0x0
-  70:	94000000 	bl	0 <printf>
+  48:	d5384241 	mrs	x1, currentel
+  4c:	d342fc21 	lsr	x1, x1, #2
+    printf("smp v0.91 2019/10/08 el%d\n", armv8_get_el());
+  50:	90000000 	adrp	x0, 0 <exc_handler>
+  54:	91000000 	add	x0, x0, #0x0
+  58:	94000000 	bl	0 <printf>
+
+    // establish the system memory pools from DRAM following the 'data' segment (see tasks.ld)
+
+    pool0 = mem_pool_create("128k top", (u64)&_free_mem, 256 * 1024 * 1024, 128 * 1024);
+  5c:	d2a00043 	mov	x3, #0x20000               	// #131072
+  60:	d2a20002 	mov	x2, #0x10000000            	// #268435456
+  64:	90000001 	adrp	x1, 0 <_free_mem>
+  68:	91000021 	add	x1, x1, #0x0
+  6c:	90000000 	adrp	x0, 0 <exc_handler>
+  70:	91000000 	add	x0, x0, #0x0
+  74:	94000000 	bl	0 <mem_pool_create>
+  78:	90000001 	adrp	x1, 8 <exc_handler+0x8>
+  7c:	f9000020 	str	x0, [x1]
+    if (pool0 == 0)  return;
+  80:	b4000440 	cbz	x0, 108 <main+0xc8>
+  84:	f9000bf3 	str	x19, [sp, #16]
+    pool4k = (struct mem_pool *)mem_alloc(pool0, 4);
+  88:	52800081 	mov	w1, #0x4                   	// #4
+  8c:	94000000 	bl	0 <mem_alloc>
+  90:	aa0003e1 	mov	x1, x0
+  94:	90000013 	adrp	x19, 8 <exc_handler+0x8>
+  98:	f9000260 	str	x0, [x19]
+    mem_pool_create("4k gp", (u64)pool4k, pool0->usize * 4, 4 * 1024);
+  9c:	90000000 	adrp	x0, 8 <exc_handler+0x8>
+  a0:	f9400000 	ldr	x0, [x0]
+  a4:	f9400802 	ldr	x2, [x0, #16]
+  a8:	d2820003 	mov	x3, #0x1000                	// #4096
+  ac:	d37ef442 	lsl	x2, x2, #2
+  b0:	90000000 	adrp	x0, 0 <exc_handler>
+  b4:	91000000 	add	x0, x0, #0x0
+  b8:	94000000 	bl	0 <mem_pool_create>
+    if (pool4k == 0)  return;
+  bc:	f9400260 	ldr	x0, [x19]
+  c0:	b4000280 	cbz	x0, 110 <main+0xd0>
 
     smp_init();
-  74:	94000000 	bl	0 <smp_init>
+  c4:	94000000 	bl	0 <smp_init>
 
     do {
     } while (con_peek() == 0);
-  78:	94000000 	bl	0 <con_peek>
-  7c:	12001c00 	and	w0, w0, #0xff
-  80:	34ffffc0 	cbz	w0, 78 <main+0x20>
+  c8:	94000000 	bl	0 <con_peek>
+  cc:	12001c00 	and	w0, w0, #0xff
+  d0:	34ffffc0 	cbz	w0, c8 <main+0x88>
     con_getc();
-  84:	94000000 	bl	0 <con_getc>
+  d4:	94000000 	bl	0 <con_getc>
+
+    // reset the system memory pools
+
+    memset((void *)pool4k, 0, sizeof(struct mem_pool));
+  d8:	d2800513 	mov	x19, #0x28                  	// #40
+  dc:	aa1303e2 	mov	x2, x19
+  e0:	52800001 	mov	w1, #0x0                   	// #0
+  e4:	90000000 	adrp	x0, 8 <exc_handler+0x8>
+  e8:	f9400000 	ldr	x0, [x0]
+  ec:	94000000 	bl	0 <memset>
+    memset((void *)pool0,  0, sizeof(struct mem_pool));
+  f0:	aa1303e2 	mov	x2, x19
+  f4:	52800001 	mov	w1, #0x0                   	// #0
+  f8:	90000000 	adrp	x0, 8 <exc_handler+0x8>
+  fc:	f9400000 	ldr	x0, [x0]
+ 100:	94000000 	bl	0 <memset>
+ 104:	f9400bf3 	ldr	x19, [sp, #16]
 }
-  88:	a8c17bfd 	ldp	x29, x30, [sp], #16
-  8c:	d65f03c0 	ret
+ 108:	a8c27bfd 	ldp	x29, x30, [sp], #32
+ 10c:	d65f03c0 	ret
+ 110:	f9400bf3 	ldr	x19, [sp, #16]
+ 114:	17fffffd 	b	108 <main+0xc8>

@@ -4,21 +4,22 @@ MEMORY
 {
     /*
      * memory regions seem hard coded for qemu aarch64:
-     *   $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 128 -monitor stdio -kernel smp.bin
+     *   $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin
      *   (qemu) info mtree
      */
     code : org = 0x40080000, len =  64K
-    data : org = 0x40090000, len = 128K
+    bss  : org = 0x40090000, len =  64K
+    data : org = 0x400a0000, len =  64K
 }
 
 SECTIONS
 {
     code : { boot.o(.text) exc.o(.text) *.o(.text) } > code
 
-    data : { *.o(.data) *.o(.bss) *(COMMON)
-        _data_start = .;
+    bss  : {
+        _bss_start = .;
 
-        . = ALIGN(96K);
+         *.o(.bss) *(COMMON)
 
         _tls0 = .;
         _stack0_end = .;
@@ -26,48 +27,11 @@ SECTIONS
         . = ALIGN(4K);
         _stack0_start = .;
 
-        _tls1 = .;
-        _stack1_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack1_start = .;
+        _bss_end = .;
+    } > bss
 
-        _tls2 = .;
-        _stack2_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack2_start = .;
-
-        _tls3 = .;
-        _stack3_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack3_start = .;
-
-        _tls4 = .;
-        _stack4_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack4_start = .;
-
-        _tls5 = .;
-        _stack5_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack5_start = .;
-
-        _tls6 = .;
-        _stack6_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack6_start = .;
-
-        _tls7 = .;
-        _stack7_end = .;
-        . += 1;
-        . = ALIGN(4K);
-        _stack7_start = .;
-
-        _data_end = .;
+    data : { *.o(.data)
+        . = ALIGN(64K);
+        _free_mem = .;
     } > data
 }

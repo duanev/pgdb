@@ -13,15 +13,15 @@ boot_entry:
     ldr     x0, =exc_table          // setup the el1 exception vectors (exc.s)
     msr     vbar_el1, x0
 
-    // ---- clear stacks
+    // ---- clear bss
 
-//    mov     x0, #0
-//    ldr     x1, =_data_start
-//    ldr     x2, =_data_end
-//1:
-//    str     x0, [x1], #8
-//    cmp     x1, x2
-//    blt     1b
+    mov     x0, #0
+    ldr     x1, =_bss_start
+    ldr     x2, =_bss_end
+1:
+    str     x0, [x1], #8
+    cmp     x1, x2
+    blt     1b
 
     // ---- initialize stack0
 

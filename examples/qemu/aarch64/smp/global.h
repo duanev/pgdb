@@ -17,23 +17,42 @@
 
 extern void * boot_args;
 
-extern int _tls0;
-extern int _tls1;
-extern int _tls2;
-extern int _tls3;
-extern int _tls4;
-extern int _tls5;
-extern int _tls6;
-extern int _tls7;
-
-#define TLS(t)      ((u64)&(_tls##t))
-
 #define MAX_CPUS    8
 
 void con_puts(const char * s);
 char con_getc(void);
 char con_peek(void);
 void reboot(void);
+
+/* -------- bitmaps */
+
+struct bitmap {
+    int nblks;
+    int count;
+    u64 blks[0];
+};
+
+void  bitmap_create(struct bitmap * map, int size);
+void  bitmap_set(struct bitmap * map, int n);
+void  bitmap_clear(struct bitmap * map, int n);
+int   bitmap_first_free(struct bitmap * map);
+
+/* -------- memory */
+
+struct mem_pool {
+    u64           base;
+    u64           size;
+    u64           usize;
+    char *        name;
+    struct bitmap map;      // must be last - bitmap blks array at end ...
+};
+
+struct mem_pool * pool0;
+struct mem_pool * pool4k;
+
+u64    mem_alloc(struct mem_pool * pool, int n);
+void   mem_free(struct mem_pool * pool, u64 addr, int n);
+struct mem_pool * mem_pool_create(char * name, u64 base, u64 size, u64 unit_size);
 
 /* -------- library functions */
 int    sprintf(char * buf, const char *fmt, ...);
@@ -44,25 +63,32 @@ char * strcpy(char * dst, const char * src);
 int    strcmp(const char * s1, const char * s2);
 void * memset(void * s, int c, unsigned long n);
 void * memcpy(void * dst, void * src, unsigned long n);
+int    n_bits_set(u64 x);
 void   hexdump(void * buf, int count, u64 addr);
 void   stkdump(void);
 
 /* -------- smp support */
 
 struct thread {
-    void * stack_start;
-    int    (* func)(struct thread *);
-    int    thno;
-    void * arg0;
+    u64             stack;      // boot.s expects this to be first
+    u64             thno;
+    struct task *   tsk;
+    int          (* func)(struct thread *);
+    void *          arg0;
+    u64             _res1;
+    u64             _res2;      // align scratch/print_buf to
+    u64             _res3;      // cache lines (easier to debug)
+
+    char            scratch[64];
+    char            print_buf[0];
 };
 
 void smp_init(void);
-int  smp_start_thread(int cpu, int (* func)(struct thread *), void * arg0);
+
+/* -------- cpu functions */
 
 // time delay (uncalibrated ...)
 #define delay(n)    for (volatile int x = 0; x < (n) * 1000; x++)
-
-/* -------- cpu functions */
 
 static inline void dc_flush(u64 va)
 {
@@ -89,12 +115,27 @@ armv8_get_tp(void)
     return tp;
 }
 
+static inline u64
+armv8_get_sp(void)
+{
+    u64 sp;
+    asm volatile("mov %0, sp"  : "=r" (sp) : );
+    return sp;
+}
+
+static inline struct thread *
+get_thread_data(void)
+{
+    return (struct thread *)armv8_get_tp();
+}
+
 // compute the core id from the tp value - this assumes knowledge of
 // where the thread local storage areas are defined in nui.ld, and
 // will only work after the tp has been established (in smp_init).
 static inline int
-core_id(void)
+cpu_id(void)
 {
-    return (armv8_get_tp() - TLS(0)) / (TLS(1) - TLS(0));
+    struct thread * th = (struct thread *)armv8_get_tp();
+    return th->thno;
 }
 

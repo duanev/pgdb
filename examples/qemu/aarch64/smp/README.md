@@ -1,13 +1,13 @@
 
 ## To run with qemu, install qemu-system-aarch64 (v4.0.50 used here), then:
 ```
-$ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 128 -monitor stdio -kernel smp.bin -smp 8
+$ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin -smp 8
 ```
 
 ## To run with pgdb and qemu:
 ```
 $ cd pgdb/examples/qemu/aarch64/smp
-$ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 128 -monitor stdio -kernel smp.bin -smp 4 -s -S
+$ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin -smp 4 -s -S
 ```
 (and in another 90x24 or larger terminal)
 ```
@@ -55,7 +55,7 @@ ARMv8_PrgGuide_1189507856.pdf  pg 204  chapter 14  Multi-core processors
 ## Get qemu to debug some errors
 
 ```
-$ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 128 -monitor stdio -kernel smp.bin -d guest_errors,unimp,in_asm -s -S
+$ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin -d guest_errors,unimp,in_asm -s -S
 ```
 
 press a key in the qemu virtual terminal to exit and reboot the

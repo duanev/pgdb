@@ -5,95 +5,99 @@ boot.o:     file format elf64-littleaarch64
 Disassembly of section .text:
 
 0000000000000000 <boot_entry>:
-   0:	580008c0 	ldr	x0, 118 <uart_addr+0x8>
+   0:	58000940 	ldr	x0, 128 <uart_addr+0x8>
    4:	d518c000 	msr	vbar_el1, x0
-   8:	580008c0 	ldr	x0, 120 <uart_addr+0x10>
-   c:	9100001f 	mov	sp, x0
-  10:	90000000 	adrp	x0, 0 <_tls0>
-  14:	d51bd040 	msr	tpidr_el0, x0
-  18:	94000000 	bl	58 <con_init>
-  1c:	94000000 	bl	0 <main>
-  20:	58000840 	ldr	x0, 128 <uart_addr+0x18>
-  24:	94000000 	bl	84 <con_puts>
+   8:	d2800000 	mov	x0, #0x0                   	// #0
+   c:	58000921 	ldr	x1, 130 <uart_addr+0x10>
+  10:	58000942 	ldr	x2, 138 <uart_addr+0x18>
+  14:	f8008420 	str	x0, [x1], #8
+  18:	eb02003f 	cmp	x1, x2
+  1c:	54ffffcb 	b.lt	14 <boot_entry+0x14>  // b.tstop
+  20:	58000900 	ldr	x0, 140 <uart_addr+0x20>
+  24:	9100001f 	mov	sp, x0
+  28:	90000000 	adrp	x0, 0 <_tls0>
+  2c:	d51bd040 	msr	tpidr_el0, x0
+  30:	94000000 	bl	70 <con_init>
+  34:	94000000 	bl	0 <main>
+  38:	58000880 	ldr	x0, 148 <uart_addr+0x28>
+  3c:	94000000 	bl	9c <con_puts>
 
-0000000000000028 <reboot>:
-  28:	58000840 	ldr	x0, 130 <uart_addr+0x20>
-  2c:	d1000400 	sub	x0, x0, #0x1
-  30:	b5ffffe0 	cbnz	x0, 2c <reboot+0x4>
-  34:	58000820 	ldr	x0, 138 <uart_addr+0x28>
-  38:	94000000 	bl	84 <con_puts>
-  3c:	58000820 	ldr	x0, 140 <uart_addr+0x30>
-  40:	d4000002 	hvc	#0x0
+0000000000000040 <reboot>:
+  40:	58000880 	ldr	x0, 150 <uart_addr+0x30>
+  44:	d1000400 	sub	x0, x0, #0x1
+  48:	b5ffffe0 	cbnz	x0, 44 <reboot+0x4>
+  4c:	58000860 	ldr	x0, 158 <uart_addr+0x38>
+  50:	94000000 	bl	9c <con_puts>
+  54:	58000860 	ldr	x0, 160 <uart_addr+0x40>
+  58:	d4000002 	hvc	#0x0
 
-0000000000000044 <smp_entry>:
-  44:	580006a3 	ldr	x3, 118 <uart_addr+0x8>
-  48:	d518c003 	msr	vbar_el1, x3
-  4c:	f9400003 	ldr	x3, [x0]
-  50:	9100007f 	mov	sp, x3
-  54:	14000000 	b	0 <smp_newcpu>
+000000000000005c <smp_entry>:
+  5c:	58000663 	ldr	x3, 128 <uart_addr+0x8>
+  60:	d518c003 	msr	vbar_el1, x3
+  64:	f9400003 	ldr	x3, [x0]
+  68:	9100007f 	mov	sp, x3
+  6c:	14000000 	b	0 <smp_newcpu>
 
-0000000000000058 <con_init>:
-  58:	580005c0 	ldr	x0, 110 <uart_addr>
-  5c:	b900301f 	str	wzr, [x0, #48]
-  60:	b900041f 	str	wzr, [x0, #4]
-  64:	b900001f 	str	wzr, [x0]
-  68:	52800041 	mov	w1, #0x2                   	// #2
-  6c:	b9002401 	str	w1, [x0, #36]
-  70:	52800161 	mov	w1, #0xb                   	// #11
-  74:	b9002801 	str	w1, [x0, #40]
-  78:	52806021 	mov	w1, #0x301                 	// #769
-  7c:	b9003001 	str	w1, [x0, #48]
-  80:	d65f03c0 	ret
+0000000000000070 <con_init>:
+  70:	58000580 	ldr	x0, 120 <uart_addr>
+  74:	b900301f 	str	wzr, [x0, #48]
+  78:	b900041f 	str	wzr, [x0, #4]
+  7c:	b900001f 	str	wzr, [x0]
+  80:	52800041 	mov	w1, #0x2                   	// #2
+  84:	b9002401 	str	w1, [x0, #36]
+  88:	52800161 	mov	w1, #0xb                   	// #11
+  8c:	b9002801 	str	w1, [x0, #40]
+  90:	52806021 	mov	w1, #0x301                 	// #769
+  94:	b9003001 	str	w1, [x0, #48]
+  98:	d65f03c0 	ret
 
-0000000000000084 <con_puts>:
-  84:	58000461 	ldr	x1, 110 <uart_addr>
+000000000000009c <con_puts>:
+  9c:	58000421 	ldr	x1, 120 <uart_addr>
 
-0000000000000088 <loop>:
-  88:	b9401823 	ldr	w3, [x1, #24]
-  8c:	52800504 	mov	w4, #0x28                  	// #40
-  90:	0a040063 	and	w3, w3, w4
-  94:	35ffffa3 	cbnz	w3, 88 <loop>
-  98:	39400002 	ldrb	w2, [x0]
-  9c:	f100005f 	cmp	x2, #0x0
-  a0:	54000180 	b.eq	d0 <done>  // b.none
-  a4:	7100285f 	cmp	w2, #0xa
-  a8:	540000e1 	b.ne	c4 <loop+0x3c>  // b.any
-  ac:	528001a3 	mov	w3, #0xd                   	// #13
-  b0:	f9000023 	str	x3, [x1]
-  b4:	b9401823 	ldr	w3, [x1, #24]
-  b8:	52800504 	mov	w4, #0x28                  	// #40
-  bc:	0a040063 	and	w3, w3, w4
-  c0:	35ffffa3 	cbnz	w3, b4 <loop+0x2c>
-  c4:	f9000022 	str	x2, [x1]
-  c8:	91000400 	add	x0, x0, #0x1
-  cc:	17ffffef 	b	88 <loop>
+00000000000000a0 <loop>:
+  a0:	b9401823 	ldr	w3, [x1, #24]
+  a4:	52800504 	mov	w4, #0x28                  	// #40
+  a8:	0a040063 	and	w3, w3, w4
+  ac:	35ffffa3 	cbnz	w3, a0 <loop>
+  b0:	39400002 	ldrb	w2, [x0]
+  b4:	f100005f 	cmp	x2, #0x0
+  b8:	54000180 	b.eq	e8 <done>  // b.none
+  bc:	7100285f 	cmp	w2, #0xa
+  c0:	540000e1 	b.ne	dc <loop+0x3c>  // b.any
+  c4:	528001a3 	mov	w3, #0xd                   	// #13
+  c8:	f9000023 	str	x3, [x1]
+  cc:	b9401823 	ldr	w3, [x1, #24]
+  d0:	52800504 	mov	w4, #0x28                  	// #40
+  d4:	0a040063 	and	w3, w3, w4
+  d8:	35ffffa3 	cbnz	w3, cc <loop+0x2c>
+  dc:	f9000022 	str	x2, [x1]
+  e0:	91000400 	add	x0, x0, #0x1
+  e4:	17ffffef 	b	a0 <loop>
 
-00000000000000d0 <done>:
-  d0:	d65f03c0 	ret
-
-00000000000000d4 <con_getc>:
-  d4:	580001e1 	ldr	x1, 110 <uart_addr>
-  d8:	b9401822 	ldr	w2, [x1, #24]
-  dc:	121c0042 	and	w2, w2, #0x10
-  e0:	35ffffc2 	cbnz	w2, d8 <con_getc+0x4>
-  e4:	b9400020 	ldr	w0, [x1]
+00000000000000e8 <done>:
   e8:	d65f03c0 	ret
 
-00000000000000ec <con_peek>:
-  ec:	d2800000 	mov	x0, #0x0                   	// #0
-  f0:	58000101 	ldr	x1, 110 <uart_addr>
-  f4:	b9401822 	ldr	w2, [x1, #24]
-  f8:	121c0042 	and	w2, w2, #0x10
-  fc:	35000042 	cbnz	w2, 104 <con_peek+0x18>
- 100:	91000420 	add	x0, x1, #0x1
- 104:	d65f03c0 	ret
- 108:	d503201f 	nop
- 10c:	d503201f 	nop
+00000000000000ec <con_getc>:
+  ec:	580001a1 	ldr	x1, 120 <uart_addr>
+  f0:	b9401822 	ldr	w2, [x1, #24]
+  f4:	121c0042 	and	w2, w2, #0x10
+  f8:	35ffffc2 	cbnz	w2, f0 <con_getc+0x4>
+  fc:	b9400020 	ldr	w0, [x1]
+ 100:	d65f03c0 	ret
 
-0000000000000110 <uart_addr>:
- 110:	09000000 	.word	0x09000000
+0000000000000104 <con_peek>:
+ 104:	d2800000 	mov	x0, #0x0                   	// #0
+ 108:	580000c1 	ldr	x1, 120 <uart_addr>
+ 10c:	b9401822 	ldr	w2, [x1, #24]
+ 110:	121c0042 	and	w2, w2, #0x10
+ 114:	35000042 	cbnz	w2, 11c <con_peek+0x18>
+ 118:	91000420 	add	x0, x1, #0x1
+ 11c:	d65f03c0 	ret
+
+0000000000000120 <uart_addr>:
+ 120:	09000000 	.word	0x09000000
 	...
- 130:	3b9aca00 	.word	0x3b9aca00
+ 150:	3b9aca00 	.word	0x3b9aca00
 	...
- 140:	84000009 	.word	0x84000009
- 144:	00000000 	.word	0x00000000
+ 160:	84000009 	.word	0x84000009
+ 164:	00000000 	.word	0x00000000

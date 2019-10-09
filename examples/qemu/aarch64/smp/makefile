@@ -3,7 +3,7 @@ CFLAGS = -mstrict-align -march=armv8-a+nofp -nostdlib -fno-builtin-printf
 # -mstrict-align fixes strcpy faults
 
 HDRS = global.h pcie.h
-OBJS = main.o smp.o lib.o
+OBJS = main.o mem.o smp.o lib.o
 
 all: smp.bin 
 

@@ -1,7 +1,8 @@
 
-#include <stdarg.h>         // for va_args
+#include <stdarg.h>
 #include "global.h"
 #include "gate.h"
+
 
 static SPMC_GATE_INIT(con_puts, MAX_CPUS);
 
@@ -9,7 +10,7 @@ int
 puts(const char * buf)
 {
     // make puts re-entrant - con_puts() is not
-    u32 token;
+    int token;
     wait_for_token(con_puts, token);
     con_puts(buf);
     return_token(con_puts, token);
@@ -18,6 +19,10 @@ puts(const char * buf)
 
 static const char xdigits[16] = { "0123456789abcdef" };
 
+/*
+ * _vsprintf() returns a count of the printable characters,
+ * but requires buf to be one character larger
+ */
 static int
 _vsprintf(char * buf, const char * fmt, va_list ap)
 {
@@ -25,7 +30,6 @@ _vsprintf(char * buf, const char * fmt, va_list ap)
     char fill = ' ';
     int mode = 0;           // state: 0 = normal, 1 = building format
     int b64 = 0;
-    int rc;
 
     char * q = buf;
     for (const char * p = fmt; *p; p++) {
@@ -59,9 +63,7 @@ _vsprintf(char * buf, const char * fmt, va_list ap)
                 mode = b64 = 0;
                 break;
             case 'x':
-                //*q++ = '0';
-                //*q++ = 'x';
-                u = b64 ? va_arg(ap, u64) : va_arg(ap, int);
+                u = b64 ? va_arg(ap, u64) : va_arg(ap, u32);
                 s = nbuf;
                 do {
                     *s++ = xdigits[u % 16];
@@ -82,9 +84,9 @@ _vsprintf(char * buf, const char * fmt, va_list ap)
             }
         }
     }
-    *q = 0;
+    *q = 0;     // don't include the null delimiter in the count ...
 
-    return rc;
+    return q - buf;
 }
 
 int
@@ -103,14 +105,14 @@ sprintf(char * buf, const char * fmt, ...)
 int
 printf(const char * fmt, ...)
 {
-    char * buf = (char *)armv8_get_tp();
+    struct thread * th = get_thread_data();
     int rc;
     va_list ap;
     va_start(ap, fmt);
 
-    rc = _vsprintf(buf, fmt, ap);
+    rc = _vsprintf(th->print_buf, fmt, ap);
 
-    puts(buf);
+    puts(th->print_buf);
 
     va_end(ap);
     return rc;
@@ -170,11 +172,23 @@ memcpy(void * dst, void * src, unsigned long n)
     return dst;
 }
 
+int
+n_bits_set(u64 x)
+{
+    int n = 0;
+    for (int i = 0; i < 64; i++) {
+        if (x & 1)
+            n++;
+        x >>= 1;
+    }
+    return n;
+}
+
+/* -------- debug functions */
 
 void
 hexdump(void * buf, int count, u64 addr)
 {
-    static char *hexmap = "0123456789abcdefgh";
     int     i, column, diff, lastdiff;
     char    hexbuf[49], asciibuf[17], last[17];
     char    *hptr, *aptr;
@@ -187,8 +201,8 @@ hexdump(void * buf, int count, u64 addr)
         unsigned char b = *((unsigned char *)buf + i);
         if (b != last[column]) diff = 1;
         last[column] = b;
-        *hptr++ = hexmap[(b >> 4) & 0xf];
-        *hptr++ = hexmap[b & 0xf];
+        *hptr++ = xdigits[(b >> 4) & 0xf];
+        *hptr++ = xdigits[b & 0xf];
         *hptr++ = column == 7 ? '-' : ' ';
         *aptr++ = (b >= ' ' && b <= '~') ? b : '.';
         if (++column == 16) {
@@ -224,8 +238,11 @@ hexdump(void * buf, int count, u64 addr)
 #ifdef __GNUC__
 #ifdef __ARM_ARCH_8A
 #define ___supported
-// this stkdump version is only tuned for gcc -O1
+// stkdump() may only work for gcc -g -O1
 
+// this sould more correctly be set to the total size of the stack,
+// I'm reducing it here to make the frame hunt more strict - with of
+// course, the caveat that large stack allocations will break stkdump()
 #define MAX_LOCAL_ALLOC 0x200
 
 void
@@ -253,23 +270,30 @@ stkdump(void)
         return;
     }
 
-    pc = (u64 *)sp[i+1];
-    sp = (u64 *)sp[i];
     printf("stack:\n");
-    while (1) {
-        printf("    pc(%x) sp(%x) ret(%x)", pc, sp, sp[0]);
+
+    sp = (u64 *)sp[i];
+    pc = (u64 *)sp[i+1];
+    struct thread * th = get_thread_data();
+    char * q = th->print_buf;
+    do {
+        q += sprintf(q, "*** exc: cpu(%d) pc(%x) sp(%x) ret(%x)",
+                                  cpu_id(), pc, sp, sp[0]);
 
         if (sp[0] < (u64)sp  ||  sp[0] > ((u64)sp + MAX_LOCAL_ALLOC)) {
-            printf("\n");
+            *q++ = '\n';
             break;
         }
 
         for (i = 2; (u64)(sp + i) < sp[0] ; i++)
-            printf(" %x", sp[i]);
+            q += sprintf(q, " %x", sp[i]);
         pc = (u64 *)sp[1];
         sp = (u64 *)sp[0];
-        printf("\n");
-    }
+        *q++ = '\n';
+    } while (1);
+    *q = '\0';
+
+    puts(th->print_buf);
 }
 
 #endif
@@ -278,8 +302,6 @@ stkdump(void)
 
 #ifndef ___supported
 void
-stkdump(void)
-{
-}
+stkdump(void) {}
 #endif
 
