@@ -58,7 +58,5 @@ ARMv8_PrgGuide_1189507856.pdf  pg 204  chapter 14  Multi-core processors
 $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 256 -monitor stdio -kernel smp.bin -d guest_errors,unimp,in_asm -s -S
 ```
 
-press a key in the qemu virtual terminal to exit and reboot the
-simulated machine ... but memory is not cleared and the bss is
-not re-initialized!
-
+Press any key in the qemu virtual terminal to reboot the simulated machine.
+(smp thread 0, the boot thread, is polling on the uart rx status)
