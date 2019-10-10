@@ -23,9 +23,7 @@ smp_newcpu(struct thread * th)
     asm volatile("wfi");        // low power sleep
 };
 
-// do NOT make this static
-// see bottom of function ...
-int __attribute__ ((noinline))
+static int
 smp_start_thread(int (* func)(struct thread *), void * arg0)
 {
     int cpu = smp_next_cpu++;
@@ -49,16 +47,16 @@ smp_start_thread(int (* func)(struct thread *), void * arg0)
     //
     // power on cpu N, point it at the smp_entry boot code,
     // and use the 'th' pointer as 'context'
+    int rc;
     asm volatile (
         "ldr  x0, =0xc4000003   \n" // cpu on
-        "mov  x1, %0            \n" // cpu number
+        "mov  x1, %1            \n" // cpu number
         "ldr  x2, =smp_entry    \n" // func addr
-        "mov  x3, %1            \n" // context id (th)
+        "mov  x3, %2            \n" // context id (th)
         "hvc  0                 \n" // hypervisor fn 0
-    : : "r" (cpu), "r" (th) : "x0","x1","x2","x3");
-    // so long as smp_start_thread() is not inlined,
-    // gcc will let me return the hvc's x0 as the
-    // function return value   :D
+        "mov  %0, x0            \n"
+    : "=r" (rc) : "r" (cpu), "r" (th) : "x0","x1","x2","x3");
+    return rc;
 }
 
 static int
@@ -76,19 +74,18 @@ thd(struct thread * th)
 //#endif
 }
 
-void
+int
 smp_init(void)
 {
     // announce the boot thread
     printf("smp0: el%d tls(%x) sp(%x)\n", armv8_get_el(), armv8_get_tp(), armv8_get_sp());
 
-    // smp_start_thread() with a zero or greater cpu number does not yet
-    // restart a cpu on the new thread ... until then smp_start_thread()
-    // must be called from main() with a -1
-    int n = 0;
-    do {
-        if (n++ >= MAX_CPUS-1) break;
-    } while (smp_start_thread(thd, (void *)((n << 4) | (u64)0xa)) == 0);
+    int n = 1;      // the boot cpu counts as 1
+    while (smp_start_thread(thd, (void *)(u64)n) == 0)
+        if (++n >= MAX_CPUS)
+            break;
 
     printf("smp_init complete %d cpus\n", n);
+
+    return n;
 }

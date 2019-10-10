@@ -30,7 +30,9 @@ SECTIONS
         _bss_end = .;
     } > bss
 
-    data : { *.o(.data)
+    data : {
+        *.o(.data)
+
         . = ALIGN(64K);
         _free_mem = .;
     } > data

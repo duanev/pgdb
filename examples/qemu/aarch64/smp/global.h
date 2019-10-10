@@ -55,6 +55,7 @@ void   mem_free(struct mem_pool * pool, u64 addr, int n);
 struct mem_pool * mem_pool_create(char * name, u64 base, u64 size, u64 unit_size);
 
 /* -------- library functions */
+
 int    sprintf(char * buf, const char *fmt, ...);
 int    printf(const char *fmt, ...);
 int    puts(const char *);
@@ -83,7 +84,7 @@ struct thread {
     char            print_buf[0];
 };
 
-void smp_init(void);
+int    smp_init(void);
 
 /* -------- cpu functions */
 

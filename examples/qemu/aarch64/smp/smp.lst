@@ -5,7 +5,7 @@ smp.o:     file format elf64-littleaarch64
 Disassembly of section .text:
 
 0000000000000000 <thd>:
-    // function return value   :D
+    return rc;
 }
 
 static int
@@ -101,99 +101,92 @@ armv8_get_sp(void)
   d0:	a8c27bfd 	ldp	x29, x30, [sp], #32
   d4:	d65f03c0 	ret
 
-00000000000000d8 <smp_start_thread>:
-{
-  d8:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
-  dc:	910003fd 	mov	x29, sp
-  e0:	a90153f3 	stp	x19, x20, [sp, #16]
-  e4:	f90013f5 	str	x21, [sp, #32]
-  e8:	aa0003f5 	mov	x21, x0
-  ec:	aa0103f4 	mov	x20, x1
-    int cpu = smp_next_cpu++;
-  f0:	90000000 	adrp	x0, 0 <thd>
-  f4:	b9400013 	ldr	w19, [x0]
-  f8:	11000661 	add	w1, w19, #0x1
-  fc:	b9000001 	str	w1, [x0]
-    struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
- 100:	52800021 	mov	w1, #0x1                   	// #1
- 104:	90000000 	adrp	x0, 8 <thd+0x8>
- 108:	f9400000 	ldr	x0, [x0]
- 10c:	94000000 	bl	0 <mem_alloc>
- 110:	aa0003e4 	mov	x4, x0
-    th->stack = (u64)th + 0x1000;
- 114:	91400400 	add	x0, x0, #0x1, lsl #12
- 118:	f9000080 	str	x0, [x4]
-    th->func  = func;
- 11c:	f9000c95 	str	x21, [x4, #24]
-    th->thno  = cpu;
- 120:	93407e60 	sxtw	x0, w19
- 124:	f9000480 	str	x0, [x4, #8]
-    th->arg0  = arg0;
- 128:	f9001094 	str	x20, [x4, #32]
-    asm volatile (
- 12c:	58000520 	ldr	x0, 1d0 <smp_init+0x80>
- 130:	aa1303e1 	mov	x1, x19
- 134:	58000522 	ldr	x2, 1d8 <smp_init+0x88>
- 138:	aa0403e3 	mov	x3, x4
- 13c:	d4000002 	hvc	#0x0
-}
- 140:	a94153f3 	ldp	x19, x20, [sp, #16]
- 144:	f94013f5 	ldr	x21, [sp, #32]
- 148:	a8c37bfd 	ldp	x29, x30, [sp], #48
- 14c:	d65f03c0 	ret
+00000000000000d8 <smp_init>:
 
-0000000000000150 <smp_init>:
-
-void
+int
 smp_init(void)
 {
- 150:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
- 154:	910003fd 	mov	x29, sp
- 158:	a90153f3 	stp	x19, x20, [sp, #16]
- 15c:	f90013f5 	str	x21, [sp, #32]
+  d8:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+  dc:	910003fd 	mov	x29, sp
+  e0:	a90153f3 	stp	x19, x20, [sp, #16]
+  e4:	a9025bf5 	stp	x21, x22, [sp, #32]
+  e8:	a90363f7 	stp	x23, x24, [sp, #48]
+  ec:	f90023f9 	str	x25, [sp, #64]
     asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
- 160:	d5384241 	mrs	x1, currentel
- 164:	d342fc21 	lsr	x1, x1, #2
+  f0:	d5384241 	mrs	x1, currentel
+  f4:	d342fc21 	lsr	x1, x1, #2
     asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
- 168:	d53bd042 	mrs	x2, tpidr_el0
+  f8:	d53bd042 	mrs	x2, tpidr_el0
     asm volatile("mov %0, sp"  : "=r" (sp) : );
- 16c:	910003e3 	mov	x3, sp
+  fc:	910003e3 	mov	x3, sp
     // announce the boot thread
     printf("smp0: el%d tls(%x) sp(%x)\n", armv8_get_el(), armv8_get_tp(), armv8_get_sp());
- 170:	90000000 	adrp	x0, 0 <thd>
- 174:	91000000 	add	x0, x0, #0x0
- 178:	94000000 	bl	0 <printf>
-    // smp_start_thread() with a zero or greater cpu number does not yet
-    // restart a cpu on the new thread ... until then smp_start_thread()
-    // must be called from main() with a -1
-    int n = 0;
-    do {
-        if (n++ >= MAX_CPUS-1) break;
- 17c:	52800033 	mov	w19, #0x1                   	// #1
-    } while (smp_start_thread(thd, (void *)((n << 4) | (u64)0xa)) == 0);
- 180:	52800155 	mov	w21, #0xa                   	// #10
- 184:	90000014 	adrp	x20, 0 <thd>
- 188:	91000294 	add	x20, x20, #0x0
- 18c:	2a1312a1 	orr	w1, w21, w19, lsl #4
- 190:	93407c21 	sxtw	x1, w1
- 194:	aa1403e0 	mov	x0, x20
- 198:	94000000 	bl	d8 <smp_start_thread>
- 19c:	35000080 	cbnz	w0, 1ac <smp_init+0x5c>
-        if (n++ >= MAX_CPUS-1) break;
- 1a0:	11000673 	add	w19, w19, #0x1
- 1a4:	7100227f 	cmp	w19, #0x8
- 1a8:	54ffff21 	b.ne	18c <smp_init+0x3c>  // b.any
+ 100:	90000000 	adrp	x0, 0 <thd>
+ 104:	91000000 	add	x0, x0, #0x0
+ 108:	94000000 	bl	0 <printf>
+
+    int n = 1;      // the boot cpu counts as 1
+    while (smp_start_thread(thd, (void *)(u64)n) == 0)
+ 10c:	d2800034 	mov	x20, #0x1                   	// #1
+    int cpu = smp_next_cpu++;
+ 110:	90000015 	adrp	x21, 0 <thd>
+ 114:	910002b5 	add	x21, x21, #0x0
+    struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
+ 118:	90000019 	adrp	x25, 8 <thd+0x8>
+ 11c:	52800038 	mov	w24, #0x1                   	// #1
+    th->func  = func;
+ 120:	90000017 	adrp	x23, 0 <thd>
+ 124:	910002f7 	add	x23, x23, #0x0
+ 128:	2a1403f6 	mov	w22, w20
+    int cpu = smp_next_cpu++;
+ 12c:	b94002b3 	ldr	w19, [x21]
+ 130:	11000660 	add	w0, w19, #0x1
+ 134:	b90002a0 	str	w0, [x21]
+    struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
+ 138:	2a1803e1 	mov	w1, w24
+ 13c:	f9400320 	ldr	x0, [x25]
+ 140:	94000000 	bl	0 <mem_alloc>
+ 144:	aa0003e4 	mov	x4, x0
+    th->stack = (u64)th + 0x1000;
+ 148:	91400400 	add	x0, x0, #0x1, lsl #12
+ 14c:	f9000080 	str	x0, [x4]
+    th->func  = func;
+ 150:	f9000c97 	str	x23, [x4, #24]
+    th->thno  = cpu;
+ 154:	93407e60 	sxtw	x0, w19
+ 158:	f9000480 	str	x0, [x4, #8]
+    th->arg0  = arg0;
+ 15c:	f9001094 	str	x20, [x4, #32]
+    asm volatile (
+ 160:	580002c0 	ldr	x0, 1b8 <smp_init+0xe0>
+ 164:	aa1303e1 	mov	x1, x19
+ 168:	580002c2 	ldr	x2, 1c0 <smp_init+0xe8>
+ 16c:	aa0403e3 	mov	x3, x4
+ 170:	d4000002 	hvc	#0x0
+ 174:	aa0003e4 	mov	x4, x0
+    while (smp_start_thread(thd, (void *)(u64)n) == 0)
+ 178:	350000a4 	cbnz	w4, 18c <smp_init+0xb4>
+        if (++n >= MAX_CPUS)
+ 17c:	11000696 	add	w22, w20, #0x1
+ 180:	91000694 	add	x20, x20, #0x1
+ 184:	f100229f 	cmp	x20, #0x8
+ 188:	54fffd01 	b.ne	128 <smp_init+0x50>  // b.any
+            break;
 
     printf("smp_init complete %d cpus\n", n);
- 1ac:	2a1303e1 	mov	w1, w19
- 1b0:	90000000 	adrp	x0, 0 <thd>
- 1b4:	91000000 	add	x0, x0, #0x0
- 1b8:	94000000 	bl	0 <printf>
+ 18c:	2a1603e1 	mov	w1, w22
+ 190:	90000000 	adrp	x0, 0 <thd>
+ 194:	91000000 	add	x0, x0, #0x0
+ 198:	94000000 	bl	0 <printf>
+
+    return n;
 }
- 1bc:	a94153f3 	ldp	x19, x20, [sp, #16]
- 1c0:	f94013f5 	ldr	x21, [sp, #32]
- 1c4:	a8c37bfd 	ldp	x29, x30, [sp], #48
- 1c8:	d65f03c0 	ret
- 1cc:	00000000 	.inst	0x00000000 ; undefined
- 1d0:	c4000003 	.word	0xc4000003
+ 19c:	2a1603e0 	mov	w0, w22
+ 1a0:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 1a4:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 1a8:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 1ac:	f94023f9 	ldr	x25, [sp, #64]
+ 1b0:	a8c57bfd 	ldp	x29, x30, [sp], #80
+ 1b4:	d65f03c0 	ret
+ 1b8:	c4000003 	.word	0xc4000003
 	...
