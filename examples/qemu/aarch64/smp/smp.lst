@@ -132,7 +132,7 @@ smp_init(void)
  110:	90000015 	adrp	x21, 0 <thd>
  114:	910002b5 	add	x21, x21, #0x0
     struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
- 118:	90000019 	adrp	x25, 8 <thd+0x8>
+ 118:	90000019 	adrp	x25, 0 <pool4k>
  11c:	52800038 	mov	w24, #0x1                   	// #1
     th->func  = func;
  120:	90000017 	adrp	x23, 0 <thd>

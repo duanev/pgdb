@@ -1,10 +1,4 @@
 
-Allocating common symbols
-Common symbol       size              file
-
-pool0               0x8               main.o
-pool4k              0x8               main.o
-
 Memory Configuration
 
 Name             Origin             Length             Attributes
@@ -100,14 +94,13 @@ bss             0x0000000040090000     0x1000
  *.o(.bss)
  .bss           0x0000000040090000        0x0 boot.o
  .bss           0x0000000040090000        0x0 exc.o
- .bss           0x0000000040090000        0x0 main.o
- .bss           0x0000000040090000        0x0 mem.o
- .bss           0x0000000040090000        0x0 smp.o
- .bss           0x0000000040090000        0x0 lib.o
- *(COMMON)
- COMMON         0x0000000040090000       0x10 main.o
+ .bss           0x0000000040090000       0x10 main.o
                 0x0000000040090000                pool0
                 0x0000000040090008                pool4k
+ .bss           0x0000000040090010        0x0 mem.o
+ .bss           0x0000000040090010        0x0 smp.o
+ .bss           0x0000000040090010        0x0 lib.o
+ *(COMMON)
                 0x0000000040090010                _tls0 = .
                 0x0000000040090010                _stack0_end = .
                 0x0000000040090011                . = (. + 0x1)
@@ -137,29 +130,29 @@ LOAD smp.o
 LOAD lib.o
 OUTPUT(smp.elf elf64-littleaarch64)
 
-.debug_line     0x0000000000000000      0xf56
+.debug_line     0x0000000000000000      0xf58
  .debug_line    0x0000000000000000       0x7d boot.o
  .debug_line    0x000000000000007d       0x57 exc.o
- .debug_line    0x00000000000000d4      0x10b main.o
- .debug_line    0x00000000000001df      0x46b mem.o
- .debug_line    0x000000000000064a      0x178 smp.o
- .debug_line    0x00000000000007c2      0x794 lib.o
+ .debug_line    0x00000000000000d4      0x10d main.o
+ .debug_line    0x00000000000001e1      0x46b mem.o
+ .debug_line    0x000000000000064c      0x178 smp.o
+ .debug_line    0x00000000000007c4      0x794 lib.o
 
-.debug_info     0x0000000000000000     0x2189
+.debug_info     0x0000000000000000     0x215d
  .debug_info    0x0000000000000000       0x2e boot.o
  .debug_info    0x000000000000002e       0x2e exc.o
- .debug_info    0x000000000000005c      0x5a8 main.o
- .debug_info    0x0000000000000604      0x8ae mem.o
- .debug_info    0x0000000000000eb2      0x6dd smp.o
- .debug_info    0x000000000000158f      0xbfa lib.o
+ .debug_info    0x000000000000005c      0x5b8 main.o
+ .debug_info    0x0000000000000614      0x89a mem.o
+ .debug_info    0x0000000000000eae      0x6c9 smp.o
+ .debug_info    0x0000000000001577      0xbe6 lib.o
 
-.debug_abbrev   0x0000000000000000      0x9cb
+.debug_abbrev   0x0000000000000000      0x98e
  .debug_abbrev  0x0000000000000000       0x14 boot.o
  .debug_abbrev  0x0000000000000014       0x14 exc.o
- .debug_abbrev  0x0000000000000028      0x1ed main.o
- .debug_abbrev  0x0000000000000215      0x240 mem.o
- .debug_abbrev  0x0000000000000455      0x298 smp.o
- .debug_abbrev  0x00000000000006ed      0x2de lib.o
+ .debug_abbrev  0x0000000000000028      0x1e9 main.o
+ .debug_abbrev  0x0000000000000211      0x22d mem.o
+ .debug_abbrev  0x000000000000043e      0x285 smp.o
+ .debug_abbrev  0x00000000000006c3      0x2cb lib.o
 
 .debug_aranges  0x0000000000000000      0x120
  .debug_aranges

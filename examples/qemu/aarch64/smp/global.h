@@ -47,8 +47,8 @@ struct mem_pool {
     struct bitmap map;      // must be last - bitmap blks array at end ...
 };
 
-struct mem_pool * pool0;
-struct mem_pool * pool4k;
+extern struct mem_pool * pool0;
+extern struct mem_pool * pool4k;
 
 u64    mem_alloc(struct mem_pool * pool, int n);
 void   mem_free(struct mem_pool * pool, u64 addr, int n);

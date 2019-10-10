@@ -18,6 +18,8 @@ exc_handler(u64 vecno, u64 esr, u64 elr, u64 far)
 
 
 extern int _free_mem;
+struct mem_pool * pool0  = 0;
+struct mem_pool * pool4k = 0;
 
 void
 main(int ac, char * av[])
