@@ -54,6 +54,7 @@ smp_entry:
     ldr     x3, =exc_table          // setup the el1 exception vectors (exc.s)
     msr     vbar_el1, x3
 
+    msr     tpidr_el0, x0
     ldr     x3, [x0]
     mov     sp, x3
     .extern smp_newcpu              // provided by smp.c

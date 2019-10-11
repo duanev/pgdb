@@ -8,8 +8,8 @@ MEMORY
      *   (qemu) info mtree
      */
     code : org = 0x40080000, len =  64K
-    bss  : org = 0x40090000, len =  64K
-    data : org = 0x400a0000, len =  64K
+    bss  : org = 0x40090000, len =  32K
+    data : org = 0x40098000, len =  32K
 }
 
 SECTIONS
@@ -19,8 +19,9 @@ SECTIONS
     bss  : {
         _bss_start = .;
 
-         *.o(.bss) *(COMMON)
+        *.o(.bss) *(COMMON)
 
+        . = ALIGN(4K);
         _tls0 = .;
         _stack0_end = .;
         . += 1;
@@ -33,7 +34,7 @@ SECTIONS
     data : {
         *.o(.data)
 
-        . = ALIGN(64K);
+        . = ALIGN(32K);
         _free_mem = .;
     } > data
 }

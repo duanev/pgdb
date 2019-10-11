@@ -12,6 +12,18 @@ puts(const char * buf)
     // make puts re-entrant - con_puts() is not
     int token;
     wait_for_token(con_puts, token);
+
+//#if 0
+    // way useful debug: show which cpu is printing this line
+    {
+        char cb[4];
+        cb[0] = '0' + cpu_id();
+        cb[1] = ' ';
+        cb[2] = '\0';
+        con_puts(cb);
+    }
+//#endif
+
     con_puts(buf);
     return_token(con_puts, token);
 }
@@ -270,12 +282,12 @@ stkdump(void)
         return;
     }
 
-    printf("stack:\n");
+    struct thread * th = get_thread_data();
+    char * q = th->print_buf;
+    q += sprintf(q, "%s", "*** stack:\n");
 
     sp = (u64 *)sp[i];
     pc = (u64 *)sp[i+1];
-    struct thread * th = get_thread_data();
-    char * q = th->print_buf;
     do {
         q += sprintf(q, "*** exc: cpu(%d) pc(%x) sp(%x) ret(%x)",
                                   cpu_id(), pc, sp, sp[0]);

@@ -154,45 +154,65 @@ mem_free(struct mem_pool * pool, u64 addr, int n)
 }
 
 
+/*
+ * mem_pool_create()
+ *
+ *  name  - for error and info messages
+ *  base  - physical start of new region
+ *  size  - size of the region; will be split into mgt structs, and blocks
+ *          (note: the resulting available pool size will be smaller)
+ *  usize - unit size of the blocks in this region
+ *  init  - zero all blocks
+ *
+ *  returns 0 on error, else a pointer to be used for
+ *  subsequent mam_alloc() and mem_free() functions.
+ */
 struct mem_pool *
-mem_pool_create(char * name, u64 base, u64 size, u64 usize)
+mem_pool_create(char * name, u64 base, u64 size, u64 usize, int init)
 {
-    // the first block is reserved for the pool data structure
+    // the first block(s) are reserved for the
+    // pool data structure and bitmap
+
     struct mem_pool * pool = (struct mem_pool *)base;
 
+    int err = 0;
+    if (n_bits_set(usize) != 1) {
+        printf("mem_pool_create error: usize must be a power of 2 (%d)\n", usize);
+        stkdump();
+        err++;
+    }
     if (size < usize * 2) {
         printf("mem_pool_create error: size (%ld) must mimally be 2x unit size (only %ld)\n",
                 name, size, usize);
         stkdump();
-        return 0;
+        err++;
     }
-    if (n_bits_set(size) != 1) {
-        printf("mem_pool_create error: size must be a power of 2 (%d)\n", size);
+    if ((size % usize) != 0) {
+        printf("mem_pool_create error: size must be a multiple of usize\n");
         stkdump();
-        return 0;
+        err++;
     }
-    if (n_bits_set(usize) != 1) {
-        printf("mem_pool_create error: usize must be a power of 2 (%d)\n", usize);
-        stkdump();
+    if (err)
         return 0;
-    }
 
-    pool->base  = base + usize;
-    pool->size  = size - usize;
+    // estimate nblks
+    int eblks = (size + usize - 1) / usize;
+    // actual nblks
+    int nblks = (size - sizeof(struct mem_pool)
+                      - (eblks + BITS_PER_BYTE - 1) / BITS_PER_BYTE
+                 ) / usize;
+
+    pool->base  = base + usize * (eblks - nblks);
+    pool->size  = size - usize * (eblks - nblks);
     pool->name  = name;
     pool->usize = usize;
 
-    int n_units = pool->size / pool->usize;
-    int max_nblks = (usize - sizeof(struct mem_pool)) / sizeof(u64) * BITS_PER_BYTE;
-    if (max_nblks < n_units) {
-        printf("mem_pool_create warning: limiting size to %d units (to fit bitmap)\n", max_nblks);
-        n_units    = max_nblks;
-        pool->size = pool->usize * n_units;
-    }
+    memset((void *)(pool->map.blks), 0, nblks / BLK_SIZE);
+    if (init)
+        memset((void *)pool->base, 0, pool->size);
 
-    memset((void *)(pool->map.blks), 0, max_nblks * BLK_SIZE);
-    bitmap_create(&pool->map, n_units);
-    printf("mem_pool %s at 0x%lx   %d units\n", name, pool, n_units);
+    bitmap_create(&pool->map, nblks);
+    printf("mem_pool %-8s at 0x%lx end 0x%lx   %d units\n", name, base, base + size, nblks);
     return pool;
 }
 

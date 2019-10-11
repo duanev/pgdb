@@ -1,3 +1,6 @@
+## smp
+
+The 'smp' version of this arm64 nano-kernel brings all the cores online.
 
 ## To run with qemu, install qemu-system-aarch64 (v4.1.0 used here), then:
 ```
@@ -18,7 +21,7 @@ $ python pgdb.py -gccmap examples/qemu/aarch64/smp/smp.map
 #### Then press:
     'h'     toggle help menu
     'l'     toggle log menu
-    'j'     jump to highlighted location in the code window (eg. run till marked instruction)
+    'j'     jump to highlighted location in the code window (eg. break at instruction marked in white - the current pc is yellow)
 #### then:
     's'     single step
     up/down arrow (move source window line at a time), page up/down (half page at a time)

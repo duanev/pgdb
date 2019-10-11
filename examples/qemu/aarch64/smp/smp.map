@@ -3,156 +3,158 @@ Memory Configuration
 
 Name             Origin             Length             Attributes
 code             0x0000000040080000 0x0000000000010000
-bss              0x0000000040090000 0x0000000000010000
-data             0x00000000400a0000 0x0000000000010000
+bss              0x0000000040090000 0x0000000000008000
+data             0x0000000040098000 0x0000000000008000
 *default*        0x0000000000000000 0xffffffffffffffff
 
 Linker script and memory map
 
 
-code            0x0000000040080000     0x1aa0
+code            0x0000000040080000     0x1afc
  boot.o(.text)
- .text          0x0000000040080000      0x168 boot.o
+ .text          0x0000000040080000      0x178 boot.o
                 0x0000000040080000                boot_entry
                 0x000000004008005c                smp_entry
-                0x0000000040080070                con_init
-                0x000000004008009c                con_puts
-                0x00000000400800ec                con_getc
-                0x0000000040080104                con_peek
+                0x0000000040080074                con_init
+                0x00000000400800a0                con_puts
+                0x00000000400800f0                con_getc
+                0x0000000040080108                con_peek
  exc.o(.text)
- *fill*         0x0000000040080168       0x98 
+ *fill*         0x0000000040080178       0x88 
  .text          0x0000000040080200      0x798 exc.o
                 0x0000000040080200                exc_table
  *.o(.text)
- .text          0x0000000040080998      0x118 main.o
+ .text          0x0000000040080998       0xd0 main.o
                 0x0000000040080998                exc_handler
                 0x00000000400809d8                main
- .text          0x0000000040080ab0      0x588 mem.o
-                0x0000000040080ab0                bitmap_create
-                0x0000000040080ac8                bitmap_set
-                0x0000000040080afc                bitmap_clear
-                0x0000000040080b30                bitmap_first_1_free
-                0x0000000040080bac                bitmap_first_n_free
-                0x0000000040080c48                mem_alloc
-                0x0000000040080dcc                mem_free
-                0x0000000040080ee8                mem_pool_create
- .text          0x0000000040081038      0x1c8 smp.o
+ .text          0x0000000040080a68      0x5d0 mem.o
+                0x0000000040080a68                bitmap_create
+                0x0000000040080a80                bitmap_set
+                0x0000000040080ab4                bitmap_clear
+                0x0000000040080ae8                bitmap_first_1_free
+                0x0000000040080b64                bitmap_first_n_free
+                0x0000000040080c00                mem_alloc
+                0x0000000040080d84                mem_free
+                0x0000000040080ea0                mem_pool_create
+ .text          0x0000000040081038      0x1e8 smp.o
                 0x00000000400810b8                smp_newcpu
-                0x0000000040081110                smp_init
- .text          0x0000000040081200      0x8a0 lib.o
-                0x0000000040081560                puts
-                0x00000000400815d4                sprintf
-                0x0000000040081634                printf
-                0x00000000400816c0                strlen
-                0x00000000400816f0                strcpy
-                0x000000004008170c                strcmp
-                0x000000004008173c                memset
-                0x0000000040081758                memcpy
-                0x0000000040081778                n_bits_set
-                0x000000004008179c                hexdump
-                0x0000000040081944                stkdump
+                0x0000000040081104                smp_init
+ .text          0x0000000040081220      0x8dc lib.o
+                0x0000000040081580                puts
+                0x0000000040081628                sprintf
+                0x0000000040081688                printf
+                0x0000000040081714                strlen
+                0x0000000040081744                strcpy
+                0x0000000040081760                strcmp
+                0x0000000040081790                memset
+                0x00000000400817ac                memcpy
+                0x00000000400817cc                n_bits_set
+                0x00000000400817f0                hexdump
+                0x0000000040081998                stkdump
 
-.rodata.str1.8  0x0000000040081aa0      0x460
+.rodata.str1.8  0x0000000040081b00      0x450
  .rodata.str1.8
-                0x0000000040081aa0      0x144 main.o
- *fill*         0x0000000040081be4        0x4 
+                0x0000000040081b00      0x13c main.o
+ *fill*         0x0000000040081c3c        0x4 
  .rodata.str1.8
-                0x0000000040081be8      0x1d1 mem.o
- *fill*         0x0000000040081db9        0x7 
+                0x0000000040081c40      0x19d mem.o
+ *fill*         0x0000000040081ddd        0x3 
  .rodata.str1.8
-                0x0000000040081dc0       0xbb smp.o
- *fill*         0x0000000040081e7b        0x5 
+                0x0000000040081de0       0xe3 smp.o
+ *fill*         0x0000000040081ec3        0x5 
  .rodata.str1.8
-                0x0000000040081e80       0x80 lib.o
-                                         0x7c (size before relaxing)
+                0x0000000040081ec8       0x88 lib.o
+                                         0x84 (size before relaxing)
 
-.rodata         0x0000000040081f00       0x90
- .rodata        0x0000000040081f00       0x80 main.o
- .rodata        0x0000000040081f80       0x10 lib.o
+.rodata         0x0000000040081f50       0x90
+ .rodata        0x0000000040081f50       0x80 main.o
+ .rodata        0x0000000040081fd0       0x10 lib.o
 
-.eh_frame       0x0000000040081f90      0x3b4
- .eh_frame      0x0000000040081f90       0x68 main.o
- .eh_frame      0x0000000040081ff8      0x128 mem.o
-                                        0x140 (size before relaxing)
- .eh_frame      0x0000000040082120       0x80 smp.o
-                                         0x90 (size before relaxing)
- .eh_frame      0x00000000400821a0      0x1a4 lib.o
+.eh_frame       0x0000000040081fe0      0x3c4
+ .eh_frame      0x0000000040081fe0       0x58 main.o
+ .eh_frame      0x0000000040082038      0x140 mem.o
+                                        0x150 (size before relaxing)
+ .eh_frame      0x0000000040082178       0x88 smp.o
+                                         0x98 (size before relaxing)
+ .eh_frame      0x0000000040082200      0x1a4 lib.o
                                         0x1b8 (size before relaxing)
 
-.iplt           0x0000000040082344        0x0
- .iplt          0x0000000040082344        0x0 boot.o
+.iplt           0x00000000400823a4        0x0
+ .iplt          0x00000000400823a4        0x0 boot.o
 
-.igot.plt       0x0000000040082348        0x0
- .igot.plt      0x0000000040082348        0x0 boot.o
+.igot.plt       0x00000000400823a8        0x0
+ .igot.plt      0x00000000400823a8        0x0 boot.o
 
-.rela.dyn       0x0000000040082348        0x0
- .rela.iplt     0x0000000040082348        0x0 boot.o
- .rela.text     0x0000000040082348        0x0 boot.o
+.rela.dyn       0x00000000400823a8        0x0
+ .rela.iplt     0x00000000400823a8        0x0 boot.o
+ .rela.text     0x00000000400823a8        0x0 boot.o
 
-bss             0x0000000040090000     0x1000
+bss             0x0000000040090000     0x2000
                 0x0000000040090000                _bss_start = .
  *.o(.bss)
  .bss           0x0000000040090000        0x0 boot.o
  .bss           0x0000000040090000        0x0 exc.o
  .bss           0x0000000040090000       0x10 main.o
-                0x0000000040090000                pool0
-                0x0000000040090008                pool4k
+                0x0000000040090000                pool4k
+                0x0000000040090008                pool128k
  .bss           0x0000000040090010        0x0 mem.o
  .bss           0x0000000040090010        0x0 smp.o
  .bss           0x0000000040090010        0x0 lib.o
  *(COMMON)
-                0x0000000040090010                _tls0 = .
-                0x0000000040090010                _stack0_end = .
-                0x0000000040090011                . = (. + 0x1)
- *fill*         0x0000000040090010        0x1 
                 0x0000000040091000                . = ALIGN (0x1000)
- *fill*         0x0000000040090011      0xfef 
-                0x0000000040091000                _stack0_start = .
-                0x0000000040091000                _bss_end = .
+ *fill*         0x0000000040090010      0xff0 
+                0x0000000040091000                _tls0 = .
+                0x0000000040091000                _stack0_end = .
+                0x0000000040091001                . = (. + 0x1)
+ *fill*         0x0000000040091000        0x1 
+                0x0000000040092000                . = ALIGN (0x1000)
+ *fill*         0x0000000040091001      0xfff 
+                0x0000000040092000                _stack0_start = .
+                0x0000000040092000                _bss_end = .
 
-data            0x00000000400a0000    0x10000
+data            0x0000000040098000     0x8000
  *.o(.data)
- .data          0x00000000400a0000       0x27 boot.o
-                0x00000000400a0027                boot_end
- .data          0x00000000400a0027        0x0 exc.o
- .data          0x00000000400a0027        0x0 main.o
- *fill*         0x00000000400a0027        0x1 
- .data          0x00000000400a0028       0x48 mem.o
- .data          0x00000000400a0070        0x4 smp.o
- *fill*         0x00000000400a0074        0x4 
- .data          0x00000000400a0078       0x48 lib.o
-                0x00000000400b0000                . = ALIGN (0x10000)
- *fill*         0x00000000400a00c0     0xff40 
-                0x00000000400b0000                _free_mem = .
+ .data          0x0000000040098000       0x27 boot.o
+                0x0000000040098027                boot_end
+ .data          0x0000000040098027        0x0 exc.o
+ .data          0x0000000040098027        0x0 main.o
+ *fill*         0x0000000040098027        0x1 
+ .data          0x0000000040098028       0x48 mem.o
+ .data          0x0000000040098070        0x4 smp.o
+ *fill*         0x0000000040098074        0x4 
+ .data          0x0000000040098078       0x48 lib.o
+                0x00000000400a0000                . = ALIGN (0x8000)
+ *fill*         0x00000000400980c0     0x7f40 
+                0x00000000400a0000                _free_mem = .
 LOAD main.o
 LOAD mem.o
 LOAD smp.o
 LOAD lib.o
 OUTPUT(smp.elf elf64-littleaarch64)
 
-.debug_line     0x0000000000000000      0xf58
- .debug_line    0x0000000000000000       0x7d boot.o
- .debug_line    0x000000000000007d       0x57 exc.o
- .debug_line    0x00000000000000d4      0x10d main.o
- .debug_line    0x00000000000001e1      0x46b mem.o
- .debug_line    0x000000000000064c      0x178 smp.o
- .debug_line    0x00000000000007c4      0x794 lib.o
+.debug_line     0x0000000000000000     0x104e
+ .debug_line    0x0000000000000000       0x7e boot.o
+ .debug_line    0x000000000000007e       0x57 exc.o
+ .debug_line    0x00000000000000d5       0xf4 main.o
+ .debug_line    0x00000000000001c9      0x495 mem.o
+ .debug_line    0x000000000000065e      0x1c5 smp.o
+ .debug_line    0x0000000000000823      0x82b lib.o
 
-.debug_info     0x0000000000000000     0x215d
+.debug_info     0x0000000000000000     0x2270
  .debug_info    0x0000000000000000       0x2e boot.o
  .debug_info    0x000000000000002e       0x2e exc.o
- .debug_info    0x000000000000005c      0x5b8 main.o
- .debug_info    0x0000000000000614      0x89a mem.o
- .debug_info    0x0000000000000eae      0x6c9 smp.o
- .debug_info    0x0000000000001577      0xbe6 lib.o
+ .debug_info    0x000000000000005c      0x564 main.o
+ .debug_info    0x00000000000005c0      0x8b1 mem.o
+ .debug_info    0x0000000000000e71      0x74f smp.o
+ .debug_info    0x00000000000015c0      0xcb0 lib.o
 
-.debug_abbrev   0x0000000000000000      0x98e
+.debug_abbrev   0x0000000000000000      0x990
  .debug_abbrev  0x0000000000000000       0x14 boot.o
  .debug_abbrev  0x0000000000000014       0x14 exc.o
- .debug_abbrev  0x0000000000000028      0x1e9 main.o
- .debug_abbrev  0x0000000000000211      0x22d mem.o
- .debug_abbrev  0x000000000000043e      0x285 smp.o
- .debug_abbrev  0x00000000000006c3      0x2cb lib.o
+ .debug_abbrev  0x0000000000000028      0x1cd main.o
+ .debug_abbrev  0x00000000000001f5      0x22d mem.o
+ .debug_abbrev  0x0000000000000422      0x276 smp.o
+ .debug_abbrev  0x0000000000000698      0x2f8 lib.o
 
 .debug_aranges  0x0000000000000000      0x120
  .debug_aranges
@@ -168,24 +170,24 @@ OUTPUT(smp.elf elf64-littleaarch64)
  .debug_aranges
                 0x00000000000000f0       0x30 lib.o
 
-.debug_str      0x0000000000000000      0x3ef
+.debug_str      0x0000000000000000      0x3e9
  .debug_str     0x0000000000000000       0x4a boot.o
  .debug_str     0x000000000000004a        0x6 exc.o
                                          0x49 (size before relaxing)
- .debug_str     0x0000000000000050      0x1d9 main.o
-                                        0x25f (size before relaxing)
- .debug_str     0x0000000000000229       0x95 mem.o
+ .debug_str     0x0000000000000050      0x1c7 main.o
                                         0x23a (size before relaxing)
- .debug_str     0x00000000000002be       0x49 smp.o
+ .debug_str     0x0000000000000217       0xa4 mem.o
+                                        0x236 (size before relaxing)
+ .debug_str     0x00000000000002bb       0x4c smp.o
                                         0x22f (size before relaxing)
- .debug_str     0x0000000000000307       0xe8 lib.o
-                                        0x2f5 (size before relaxing)
+ .debug_str     0x0000000000000307       0xe2 lib.o
+                                        0x303 (size before relaxing)
 
-.debug_loc      0x0000000000000000     0x33b0
+.debug_loc      0x0000000000000000     0x34d0
  .debug_loc     0x0000000000000000      0x21c main.o
- .debug_loc     0x000000000000021c      0xeb8 mem.o
- .debug_loc     0x00000000000010d4      0x2fe smp.o
- .debug_loc     0x00000000000013d2     0x1fde lib.o
+ .debug_loc     0x000000000000021c      0xf39 mem.o
+ .debug_loc     0x0000000000001155      0x37d smp.o
+ .debug_loc     0x00000000000014d2     0x1ffe lib.o
 
 .comment        0x0000000000000000       0x11
  .comment       0x0000000000000000       0x11 main.o
@@ -205,6 +207,6 @@ OUTPUT(smp.elf elf64-littleaarch64)
  .note.GNU-stack
                 0x0000000000000000        0x0 lib.o
 
-.debug_ranges   0x0000000000000000      0x130
- .debug_ranges  0x0000000000000000       0x60 smp.o
- .debug_ranges  0x0000000000000060       0xd0 lib.o
+.debug_ranges   0x0000000000000000      0x110
+ .debug_ranges  0x0000000000000000       0x40 smp.o
+ .debug_ranges  0x0000000000000040       0xd0 lib.o

@@ -86,8 +86,15 @@ usage: python pgdb.py [-remote tcp::1234] [-nasmlst <file1>] [-objdump <file2>] 
 <img src="https://user-images.githubusercontent.com/153577/57986990-648dfa80-7a41-11e9-82c8-c46da3d33490.png" title="ScreenShot">
 
 
+## Bugs
 
-Donations gladly accepted and will certainly attract more of my attention :)
+- Can't trace through static functions - the source window doesn't update
+- 'u' needs to go up a "stack frame" (whatever that is ...)
+- 'd' needs to undo a previous 'u'
+
+## Donations
+
+Gladly accepted and will certainly attract more of my attention :)
 
     email: duanev at gmail
     btc: 3PkNXvGkzeLR2J1xgPHkFDEM7xFbEHCZQB

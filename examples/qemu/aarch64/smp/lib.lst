@@ -302,586 +302,605 @@ _vsprintf(char * buf, const char * fmt, va_list ap)
 
 0000000000000360 <puts>:
 {
- 360:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+ 360:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
  364:	910003fd 	mov	x29, sp
  368:	a90153f3 	stp	x19, x20, [sp, #16]
+ 36c:	f90013f5 	str	x21, [sp, #32]
+ 370:	aa0003f4 	mov	x20, x0
     wait_for_token(con_puts, token);
- 36c:	90000001 	adrp	x1, 0 <_vsprintf>
- 370:	91000021 	add	x1, x1, #0x0
- 374:	91010021 	add	x1, x1, #0x40
- 378:	885f7c22 	ldxr	w2, [x1]
- 37c:	11000443 	add	w3, w2, #0x1
- 380:	8804fc23 	stlxr	w4, w3, [x1]
- 384:	35ffffa4 	cbnz	w4, 378 <puts+0x18>
- 388:	d5033bbf 	dmb	ish
- 38c:	12000853 	and	w19, w2, #0x7
- 390:	90000003 	adrp	x3, 0 <_vsprintf>
- 394:	91000063 	add	x3, x3, #0x0
- 398:	92400842 	and	x2, x2, #0x7
- 39c:	f8627861 	ldr	x1, [x3, x2, lsl #3]
- 3a0:	b4ffffe1 	cbz	x1, 39c <puts+0x3c>
- 3a4:	90000014 	adrp	x20, 0 <_vsprintf>
- 3a8:	91000294 	add	x20, x20, #0x0
- 3ac:	93407e61 	sxtw	x1, w19
- 3b0:	f8217a9f 	str	xzr, [x20, x1, lsl #3]
-    con_puts(buf);
- 3b4:	94000000 	bl	0 <con_puts>
-    wait_for_token(con_puts, token);
- 3b8:	11000673 	add	w19, w19, #0x1
-    return_token(con_puts, token);
- 3bc:	92400a73 	and	x19, x19, #0x7
- 3c0:	d2800020 	mov	x0, #0x1                   	// #1
- 3c4:	f8337a80 	str	x0, [x20, x19, lsl #3]
-}
- 3c8:	a94153f3 	ldp	x19, x20, [sp, #16]
- 3cc:	a8c27bfd 	ldp	x29, x30, [sp], #32
- 3d0:	d65f03c0 	ret
-
-00000000000003d4 <sprintf>:
-
-int
-sprintf(char * buf, const char * fmt, ...)
-{
- 3d4:	a9b87bfd 	stp	x29, x30, [sp, #-128]!
- 3d8:	910003fd 	mov	x29, sp
- 3dc:	f9002be2 	str	x2, [sp, #80]
- 3e0:	f9002fe3 	str	x3, [sp, #88]
- 3e4:	f90033e4 	str	x4, [sp, #96]
- 3e8:	f90037e5 	str	x5, [sp, #104]
- 3ec:	f9003be6 	str	x6, [sp, #112]
- 3f0:	f9003fe7 	str	x7, [sp, #120]
-    int rc;
-    va_list ap;
-    va_start(ap, fmt);
- 3f4:	910203e2 	add	x2, sp, #0x80
- 3f8:	f9001be2 	str	x2, [sp, #48]
- 3fc:	f9001fe2 	str	x2, [sp, #56]
- 400:	910143e2 	add	x2, sp, #0x50
- 404:	f90023e2 	str	x2, [sp, #64]
- 408:	128005e2 	mov	w2, #0xffffffd0            	// #-48
- 40c:	b9004be2 	str	w2, [sp, #72]
- 410:	b9004fff 	str	wzr, [sp, #76]
-
-    rc = _vsprintf(buf, fmt, ap);
- 414:	a9430fe2 	ldp	x2, x3, [sp, #48]
- 418:	a9010fe2 	stp	x2, x3, [sp, #16]
- 41c:	a9440fe2 	ldp	x2, x3, [sp, #64]
- 420:	a9020fe2 	stp	x2, x3, [sp, #32]
- 424:	910043e2 	add	x2, sp, #0x10
- 428:	97fffef6 	bl	0 <_vsprintf>
-
-    va_end(ap);
-    return rc;
-}
- 42c:	a8c87bfd 	ldp	x29, x30, [sp], #128
- 430:	d65f03c0 	ret
-
-0000000000000434 <printf>:
-
-int
-printf(const char * fmt, ...)
-{
- 434:	a9b67bfd 	stp	x29, x30, [sp, #-160]!
- 438:	910003fd 	mov	x29, sp
- 43c:	a90153f3 	stp	x19, x20, [sp, #16]
- 440:	f90037e1 	str	x1, [sp, #104]
- 444:	f9003be2 	str	x2, [sp, #112]
- 448:	f9003fe3 	str	x3, [sp, #120]
- 44c:	f90043e4 	str	x4, [sp, #128]
- 450:	f90047e5 	str	x5, [sp, #136]
- 454:	f9004be6 	str	x6, [sp, #144]
- 458:	f9004fe7 	str	x7, [sp, #152]
+ 374:	90000001 	adrp	x1, 0 <_vsprintf>
+ 378:	91000021 	add	x1, x1, #0x0
+ 37c:	91010021 	add	x1, x1, #0x40
+ 380:	885f7c22 	ldxr	w2, [x1]
+ 384:	11000440 	add	w0, w2, #0x1
+ 388:	8803fc20 	stlxr	w3, w0, [x1]
+ 38c:	35ffffa3 	cbnz	w3, 380 <puts+0x20>
+ 390:	d5033bbf 	dmb	ish
+ 394:	12000853 	and	w19, w2, #0x7
+ 398:	90000003 	adrp	x3, 0 <_vsprintf>
+ 39c:	91000063 	add	x3, x3, #0x0
+ 3a0:	92400842 	and	x2, x2, #0x7
+ 3a4:	f8627861 	ldr	x1, [x3, x2, lsl #3]
+ 3a8:	b4ffffe1 	cbz	x1, 3a4 <puts+0x44>
+ 3ac:	90000015 	adrp	x21, 0 <_vsprintf>
+ 3b0:	910002b5 	add	x21, x21, #0x0
+ 3b4:	93407e60 	sxtw	x0, w19
+ 3b8:	f8207abf 	str	xzr, [x21, x0, lsl #3]
 
 static inline u64
 armv8_get_tp(void)
 {
     u64 tp;
     asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
- 45c:	d53bd053 	mrs	x19, tpidr_el0
-    struct thread * th = get_thread_data();
+ 3bc:	d53bd040 	mrs	x0, tpidr_el0
+        cb[0] = '0' + cpu_id();
+ 3c0:	f9400400 	ldr	x0, [x0, #8]
+ 3c4:	1100c000 	add	w0, w0, #0x30
+ 3c8:	3900e3e0 	strb	w0, [sp, #56]
+        cb[1] = ' ';
+ 3cc:	52800400 	mov	w0, #0x20                  	// #32
+ 3d0:	3900e7e0 	strb	w0, [sp, #57]
+        cb[2] = '\0';
+ 3d4:	3900ebff 	strb	wzr, [sp, #58]
+        con_puts(cb);
+ 3d8:	9100e3e0 	add	x0, sp, #0x38
+ 3dc:	94000000 	bl	0 <con_puts>
+    con_puts(buf);
+ 3e0:	aa1403e0 	mov	x0, x20
+ 3e4:	94000000 	bl	0 <con_puts>
+    wait_for_token(con_puts, token);
+ 3e8:	11000673 	add	w19, w19, #0x1
+    return_token(con_puts, token);
+ 3ec:	92400a73 	and	x19, x19, #0x7
+ 3f0:	d2800020 	mov	x0, #0x1                   	// #1
+ 3f4:	f8337aa0 	str	x0, [x21, x19, lsl #3]
+}
+ 3f8:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 3fc:	f94013f5 	ldr	x21, [sp, #32]
+ 400:	a8c47bfd 	ldp	x29, x30, [sp], #64
+ 404:	d65f03c0 	ret
+
+0000000000000408 <sprintf>:
+
+int
+sprintf(char * buf, const char * fmt, ...)
+{
+ 408:	a9b87bfd 	stp	x29, x30, [sp, #-128]!
+ 40c:	910003fd 	mov	x29, sp
+ 410:	f9002be2 	str	x2, [sp, #80]
+ 414:	f9002fe3 	str	x3, [sp, #88]
+ 418:	f90033e4 	str	x4, [sp, #96]
+ 41c:	f90037e5 	str	x5, [sp, #104]
+ 420:	f9003be6 	str	x6, [sp, #112]
+ 424:	f9003fe7 	str	x7, [sp, #120]
     int rc;
     va_list ap;
     va_start(ap, fmt);
- 460:	910283e1 	add	x1, sp, #0xa0
- 464:	f90023e1 	str	x1, [sp, #64]
- 468:	f90027e1 	str	x1, [sp, #72]
- 46c:	910183e1 	add	x1, sp, #0x60
- 470:	f9002be1 	str	x1, [sp, #80]
- 474:	128006e1 	mov	w1, #0xffffffc8            	// #-56
- 478:	b9005be1 	str	w1, [sp, #88]
- 47c:	b9005fff 	str	wzr, [sp, #92]
+ 428:	910203e2 	add	x2, sp, #0x80
+ 42c:	f9001be2 	str	x2, [sp, #48]
+ 430:	f9001fe2 	str	x2, [sp, #56]
+ 434:	910143e2 	add	x2, sp, #0x50
+ 438:	f90023e2 	str	x2, [sp, #64]
+ 43c:	128005e2 	mov	w2, #0xffffffd0            	// #-48
+ 440:	b9004be2 	str	w2, [sp, #72]
+ 444:	b9004fff 	str	wzr, [sp, #76]
 
-    rc = _vsprintf(th->print_buf, fmt, ap);
- 480:	91020273 	add	x19, x19, #0x80
- 484:	a9440fe2 	ldp	x2, x3, [sp, #64]
- 488:	a9020fe2 	stp	x2, x3, [sp, #32]
- 48c:	a9450fe2 	ldp	x2, x3, [sp, #80]
- 490:	a9030fe2 	stp	x2, x3, [sp, #48]
- 494:	910083e2 	add	x2, sp, #0x20
- 498:	aa0003e1 	mov	x1, x0
- 49c:	aa1303e0 	mov	x0, x19
- 4a0:	97fffed8 	bl	0 <_vsprintf>
- 4a4:	2a0003f4 	mov	w20, w0
-
-    puts(th->print_buf);
- 4a8:	aa1303e0 	mov	x0, x19
- 4ac:	94000000 	bl	360 <puts>
+    rc = _vsprintf(buf, fmt, ap);
+ 448:	a9430fe2 	ldp	x2, x3, [sp, #48]
+ 44c:	a9010fe2 	stp	x2, x3, [sp, #16]
+ 450:	a9440fe2 	ldp	x2, x3, [sp, #64]
+ 454:	a9020fe2 	stp	x2, x3, [sp, #32]
+ 458:	910043e2 	add	x2, sp, #0x10
+ 45c:	97fffee9 	bl	0 <_vsprintf>
 
     va_end(ap);
     return rc;
 }
- 4b0:	2a1403e0 	mov	w0, w20
- 4b4:	a94153f3 	ldp	x19, x20, [sp, #16]
- 4b8:	a8ca7bfd 	ldp	x29, x30, [sp], #160
- 4bc:	d65f03c0 	ret
+ 460:	a8c87bfd 	ldp	x29, x30, [sp], #128
+ 464:	d65f03c0 	ret
 
-00000000000004c0 <strlen>:
+0000000000000468 <printf>:
+
+int
+printf(const char * fmt, ...)
+{
+ 468:	a9b67bfd 	stp	x29, x30, [sp, #-160]!
+ 46c:	910003fd 	mov	x29, sp
+ 470:	a90153f3 	stp	x19, x20, [sp, #16]
+ 474:	f90037e1 	str	x1, [sp, #104]
+ 478:	f9003be2 	str	x2, [sp, #112]
+ 47c:	f9003fe3 	str	x3, [sp, #120]
+ 480:	f90043e4 	str	x4, [sp, #128]
+ 484:	f90047e5 	str	x5, [sp, #136]
+ 488:	f9004be6 	str	x6, [sp, #144]
+ 48c:	f9004fe7 	str	x7, [sp, #152]
+ 490:	d53bd053 	mrs	x19, tpidr_el0
+    struct thread * th = get_thread_data();
+    int rc;
+    va_list ap;
+    va_start(ap, fmt);
+ 494:	910283e1 	add	x1, sp, #0xa0
+ 498:	f90023e1 	str	x1, [sp, #64]
+ 49c:	f90027e1 	str	x1, [sp, #72]
+ 4a0:	910183e1 	add	x1, sp, #0x60
+ 4a4:	f9002be1 	str	x1, [sp, #80]
+ 4a8:	128006e1 	mov	w1, #0xffffffc8            	// #-56
+ 4ac:	b9005be1 	str	w1, [sp, #88]
+ 4b0:	b9005fff 	str	wzr, [sp, #92]
+
+    rc = _vsprintf(th->print_buf, fmt, ap);
+ 4b4:	91020273 	add	x19, x19, #0x80
+ 4b8:	a9440fe2 	ldp	x2, x3, [sp, #64]
+ 4bc:	a9020fe2 	stp	x2, x3, [sp, #32]
+ 4c0:	a9450fe2 	ldp	x2, x3, [sp, #80]
+ 4c4:	a9030fe2 	stp	x2, x3, [sp, #48]
+ 4c8:	910083e2 	add	x2, sp, #0x20
+ 4cc:	aa0003e1 	mov	x1, x0
+ 4d0:	aa1303e0 	mov	x0, x19
+ 4d4:	97fffecb 	bl	0 <_vsprintf>
+ 4d8:	2a0003f4 	mov	w20, w0
+
+    puts(th->print_buf);
+ 4dc:	aa1303e0 	mov	x0, x19
+ 4e0:	94000000 	bl	360 <puts>
+
+    va_end(ap);
+    return rc;
+}
+ 4e4:	2a1403e0 	mov	w0, w20
+ 4e8:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 4ec:	a8ca7bfd 	ldp	x29, x30, [sp], #160
+ 4f0:	d65f03c0 	ret
+
+00000000000004f4 <strlen>:
 
 long
 strlen(const char * s)
 {
     int i = 0;
     while (s[i]) i++;
- 4c0:	39400001 	ldrb	w1, [x0]
- 4c4:	34000121 	cbz	w1, 4e8 <strlen+0x28>
- 4c8:	d2800021 	mov	x1, #0x1                   	// #1
- 4cc:	d1000403 	sub	x3, x0, #0x1
- 4d0:	2a0103e0 	mov	w0, w1
- 4d4:	91000421 	add	x1, x1, #0x1
- 4d8:	38616862 	ldrb	w2, [x3, x1]
- 4dc:	35ffffa2 	cbnz	w2, 4d0 <strlen+0x10>
+ 4f4:	39400001 	ldrb	w1, [x0]
+ 4f8:	34000121 	cbz	w1, 51c <strlen+0x28>
+ 4fc:	d2800021 	mov	x1, #0x1                   	// #1
+ 500:	d1000403 	sub	x3, x0, #0x1
+ 504:	2a0103e0 	mov	w0, w1
+ 508:	91000421 	add	x1, x1, #0x1
+ 50c:	38616862 	ldrb	w2, [x3, x1]
+ 510:	35ffffa2 	cbnz	w2, 504 <strlen+0x10>
     return i;
 }
- 4e0:	93407c00 	sxtw	x0, w0
- 4e4:	d65f03c0 	ret
+ 514:	93407c00 	sxtw	x0, w0
+ 518:	d65f03c0 	ret
     int i = 0;
- 4e8:	52800000 	mov	w0, #0x0                   	// #0
- 4ec:	17fffffd 	b	4e0 <strlen+0x20>
+ 51c:	52800000 	mov	w0, #0x0                   	// #0
+ 520:	17fffffd 	b	514 <strlen+0x20>
 
-00000000000004f0 <strcpy>:
+0000000000000524 <strcpy>:
 
 char *
 strcpy(char * dst, const char * src)
 {
     while (*src)
- 4f0:	39400022 	ldrb	w2, [x1]
- 4f4:	34000082 	cbz	w2, 504 <strcpy+0x14>
+ 524:	39400022 	ldrb	w2, [x1]
+ 528:	34000082 	cbz	w2, 538 <strcpy+0x14>
         *dst++ = *src++;
- 4f8:	38001402 	strb	w2, [x0], #1
+ 52c:	38001402 	strb	w2, [x0], #1
     while (*src)
- 4fc:	38401c22 	ldrb	w2, [x1, #1]!
- 500:	35ffffc2 	cbnz	w2, 4f8 <strcpy+0x8>
+ 530:	38401c22 	ldrb	w2, [x1, #1]!
+ 534:	35ffffc2 	cbnz	w2, 52c <strcpy+0x8>
     *dst = 0;
- 504:	3900001f 	strb	wzr, [x0]
+ 538:	3900001f 	strb	wzr, [x0]
 }
- 508:	d65f03c0 	ret
+ 53c:	d65f03c0 	ret
 
-000000000000050c <strcmp>:
+0000000000000540 <strcmp>:
 
 int
 strcmp(const char * s1, const char * s2)
 {
     while (*s1  &&  *s2) {
- 50c:	39400002 	ldrb	w2, [x0]
- 510:	34000102 	cbz	w2, 530 <strcmp+0x24>
- 514:	39400023 	ldrb	w3, [x1]
+ 540:	39400002 	ldrb	w2, [x0]
+ 544:	34000102 	cbz	w2, 564 <strcmp+0x24>
+ 548:	39400023 	ldrb	w3, [x1]
         if (*s1 != *s2)
- 518:	7100007f 	cmp	w3, #0x0
- 51c:	7a421060 	ccmp	w3, w2, #0x0, ne  // ne = any
- 520:	54000081 	b.ne	530 <strcmp+0x24>  // b.any
+ 54c:	7100007f 	cmp	w3, #0x0
+ 550:	7a421060 	ccmp	w3, w2, #0x0, ne  // ne = any
+ 554:	54000081 	b.ne	564 <strcmp+0x24>  // b.any
             break;
         s1++;
         s2++;
- 524:	91000421 	add	x1, x1, #0x1
+ 558:	91000421 	add	x1, x1, #0x1
     while (*s1  &&  *s2) {
- 528:	38401c02 	ldrb	w2, [x0, #1]!
- 52c:	35ffff42 	cbnz	w2, 514 <strcmp+0x8>
+ 55c:	38401c02 	ldrb	w2, [x0, #1]!
+ 560:	35ffff42 	cbnz	w2, 548 <strcmp+0x8>
     }
     return *s2 - *s1;
- 530:	39400020 	ldrb	w0, [x1]
+ 564:	39400020 	ldrb	w0, [x1]
 }
- 534:	4b020000 	sub	w0, w0, w2
- 538:	d65f03c0 	ret
+ 568:	4b020000 	sub	w0, w0, w2
+ 56c:	d65f03c0 	ret
 
-000000000000053c <memset>:
+0000000000000570 <memset>:
 
 void *
 memset(void * s, int c, unsigned long n)
 {
     u8 * d = s;
     while (n-- > 0)
- 53c:	b40000c2 	cbz	x2, 554 <memset+0x18>
- 540:	8b020003 	add	x3, x0, x2
+ 570:	b40000c2 	cbz	x2, 588 <memset+0x18>
+ 574:	8b020003 	add	x3, x0, x2
     u8 * d = s;
- 544:	aa0003e2 	mov	x2, x0
+ 578:	aa0003e2 	mov	x2, x0
         *d++ = c;
- 548:	38001441 	strb	w1, [x2], #1
+ 57c:	38001441 	strb	w1, [x2], #1
     while (n-- > 0)
- 54c:	eb02007f 	cmp	x3, x2
- 550:	54ffffc1 	b.ne	548 <memset+0xc>  // b.any
+ 580:	eb02007f 	cmp	x3, x2
+ 584:	54ffffc1 	b.ne	57c <memset+0xc>  // b.any
     return s;
 }
- 554:	d65f03c0 	ret
+ 588:	d65f03c0 	ret
 
-0000000000000558 <memcpy>:
+000000000000058c <memcpy>:
 
 void *
 memcpy(void * dst, void * src, unsigned long n)
 {
     u8 * d = dst;
     while (n-- > 0)
- 558:	b40000e2 	cbz	x2, 574 <memcpy+0x1c>
- 55c:	d2800003 	mov	x3, #0x0                   	// #0
+ 58c:	b40000e2 	cbz	x2, 5a8 <memcpy+0x1c>
+ 590:	d2800003 	mov	x3, #0x0                   	// #0
         *d++ = *((u8 *)src++);
- 560:	38636824 	ldrb	w4, [x1, x3]
- 564:	38236804 	strb	w4, [x0, x3]
+ 594:	38636824 	ldrb	w4, [x1, x3]
+ 598:	38236804 	strb	w4, [x0, x3]
     while (n-- > 0)
- 568:	91000463 	add	x3, x3, #0x1
- 56c:	eb02007f 	cmp	x3, x2
- 570:	54ffff81 	b.ne	560 <memcpy+0x8>  // b.any
+ 59c:	91000463 	add	x3, x3, #0x1
+ 5a0:	eb02007f 	cmp	x3, x2
+ 5a4:	54ffff81 	b.ne	594 <memcpy+0x8>  // b.any
     return dst;
 }
- 574:	d65f03c0 	ret
+ 5a8:	d65f03c0 	ret
 
-0000000000000578 <n_bits_set>:
+00000000000005ac <n_bits_set>:
 
 int
 n_bits_set(u64 x)
 {
- 578:	aa0003e1 	mov	x1, x0
- 57c:	52800802 	mov	w2, #0x40                  	// #64
+ 5ac:	aa0003e1 	mov	x1, x0
+ 5b0:	52800802 	mov	w2, #0x40                  	// #64
     int n = 0;
- 580:	52800000 	mov	w0, #0x0                   	// #0
+ 5b4:	52800000 	mov	w0, #0x0                   	// #0
     for (int i = 0; i < 64; i++) {
         if (x & 1)
             n++;
- 584:	12000023 	and	w3, w1, #0x1
- 588:	0b030000 	add	w0, w0, w3
+ 5b8:	12000023 	and	w3, w1, #0x1
+ 5bc:	0b030000 	add	w0, w0, w3
         x >>= 1;
- 58c:	d341fc21 	lsr	x1, x1, #1
+ 5c0:	d341fc21 	lsr	x1, x1, #1
     for (int i = 0; i < 64; i++) {
- 590:	71000442 	subs	w2, w2, #0x1
- 594:	54ffff81 	b.ne	584 <n_bits_set+0xc>  // b.any
+ 5c4:	71000442 	subs	w2, w2, #0x1
+ 5c8:	54ffff81 	b.ne	5b8 <n_bits_set+0xc>  // b.any
     }
     return n;
 }
- 598:	d65f03c0 	ret
+ 5cc:	d65f03c0 	ret
 
-000000000000059c <hexdump>:
+00000000000005d0 <hexdump>:
 
     hptr = hexbuf;
     aptr = asciibuf;
     i = column = 0;
     diff = 1;
     while (i < count) {
- 59c:	7100003f 	cmp	w1, #0x0
- 5a0:	54000d0d 	b.le	740 <hexdump+0x1a4>
+ 5d0:	7100003f 	cmp	w1, #0x0
+ 5d4:	54000d0d 	b.le	774 <hexdump+0x1a4>
 {
- 5a4:	a9b47bfd 	stp	x29, x30, [sp, #-192]!
- 5a8:	910003fd 	mov	x29, sp
- 5ac:	a90153f3 	stp	x19, x20, [sp, #16]
- 5b0:	a9025bf5 	stp	x21, x22, [sp, #32]
- 5b4:	a90363f7 	stp	x23, x24, [sp, #48]
- 5b8:	f90023f9 	str	x25, [sp, #64]
- 5bc:	aa0203f8 	mov	x24, x2
- 5c0:	aa0003f3 	mov	x19, x0
- 5c4:	91000400 	add	x0, x0, #0x1
- 5c8:	51000421 	sub	w1, w1, #0x1
- 5cc:	8b010017 	add	x23, x0, x1
+ 5d8:	a9b47bfd 	stp	x29, x30, [sp, #-192]!
+ 5dc:	910003fd 	mov	x29, sp
+ 5e0:	a90153f3 	stp	x19, x20, [sp, #16]
+ 5e4:	a9025bf5 	stp	x21, x22, [sp, #32]
+ 5e8:	a90363f7 	stp	x23, x24, [sp, #48]
+ 5ec:	f90023f9 	str	x25, [sp, #64]
+ 5f0:	aa0203f8 	mov	x24, x2
+ 5f4:	aa0003f3 	mov	x19, x0
+ 5f8:	91000400 	add	x0, x0, #0x1
+ 5fc:	51000421 	sub	w1, w1, #0x1
+ 600:	8b010017 	add	x23, x0, x1
     aptr = asciibuf;
- 5d0:	9101c3e2 	add	x2, sp, #0x70
+ 604:	9101c3e2 	add	x2, sp, #0x70
     hptr = hexbuf;
- 5d4:	910223e3 	add	x3, sp, #0x88
+ 608:	910223e3 	add	x3, sp, #0x88
     diff = 1;
- 5d8:	52800034 	mov	w20, #0x1                   	// #1
+ 60c:	52800034 	mov	w20, #0x1                   	// #1
     i = column = 0;
- 5dc:	52800001 	mov	w1, #0x0                   	// #0
+ 610:	52800001 	mov	w1, #0x0                   	// #0
         unsigned char b = *((unsigned char *)buf + i);
         if (b != last[column]) diff = 1;
- 5e0:	910163f6 	add	x22, sp, #0x58
- 5e4:	2a1403f9 	mov	w25, w20
+ 614:	910163f6 	add	x22, sp, #0x58
+ 618:	2a1403f9 	mov	w25, w20
         last[column] = b;
         *hptr++ = xdigits[(b >> 4) & 0xf];
- 5e8:	90000015 	adrp	x21, 0 <_vsprintf>
- 5ec:	910002b5 	add	x21, x21, #0x0
- 5f0:	1400002f 	b	6ac <hexdump+0x110>
+ 61c:	90000015 	adrp	x21, 0 <_vsprintf>
+ 620:	910002b5 	add	x21, x21, #0x0
+ 624:	1400002f 	b	6e0 <hexdump+0x110>
         *aptr++ = (b >= ' ' && b <= '~') ? b : '.';
         if (++column == 16) {
             *hptr = *aptr = 0;
             if (diff == 0) {
                 if (lastdiff == 1)
                     printf("(same)\n");
- 5f4:	90000000 	adrp	x0, 0 <_vsprintf>
- 5f8:	91000000 	add	x0, x0, #0x0
- 5fc:	94000000 	bl	434 <printf>
- 600:	14000049 	b	724 <hexdump+0x188>
+ 628:	90000000 	adrp	x0, 0 <_vsprintf>
+ 62c:	91000000 	add	x0, x0, #0x0
+ 630:	94000000 	bl	468 <printf>
+ 634:	14000049 	b	758 <hexdump+0x188>
             } else {
                 printf("%x: %s  %s\n", addr, hexbuf, asciibuf);
- 604:	9101c3e3 	add	x3, sp, #0x70
- 608:	910223e2 	add	x2, sp, #0x88
- 60c:	aa1803e1 	mov	x1, x24
- 610:	90000000 	adrp	x0, 0 <_vsprintf>
- 614:	91000000 	add	x0, x0, #0x0
- 618:	94000000 	bl	434 <printf>
- 61c:	14000042 	b	724 <hexdump+0x188>
+ 638:	9101c3e3 	add	x3, sp, #0x70
+ 63c:	910223e2 	add	x2, sp, #0x88
+ 640:	aa1803e1 	mov	x1, x24
+ 644:	90000000 	adrp	x0, 0 <_vsprintf>
+ 648:	91000000 	add	x0, x0, #0x0
+ 64c:	94000000 	bl	468 <printf>
+ 650:	14000042 	b	758 <hexdump+0x188>
             hptr = hexbuf;
             aptr = asciibuf;
         }
         i++;
     }
     if (column) {
- 620:	350000e1 	cbnz	w1, 63c <hexdump+0xa0>
+ 654:	350000e1 	cbnz	w1, 670 <hexdump+0xa0>
         *hptr = *aptr = 0;
         printf("%x: %s  %s\n", addr, hexbuf, asciibuf);
     }
 }
- 624:	a94153f3 	ldp	x19, x20, [sp, #16]
- 628:	a9425bf5 	ldp	x21, x22, [sp, #32]
- 62c:	a94363f7 	ldp	x23, x24, [sp, #48]
- 630:	f94023f9 	ldr	x25, [sp, #64]
- 634:	a8cc7bfd 	ldp	x29, x30, [sp], #192
- 638:	d65f03c0 	ret
+ 658:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 65c:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 660:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 664:	f94023f9 	ldr	x25, [sp, #64]
+ 668:	a8cc7bfd 	ldp	x29, x30, [sp], #192
+ 66c:	d65f03c0 	ret
         *hptr = *aptr = 0;
- 63c:	3900005f 	strb	wzr, [x2]
- 640:	3900007f 	strb	wzr, [x3]
+ 670:	3900005f 	strb	wzr, [x2]
+ 674:	3900007f 	strb	wzr, [x3]
         printf("%x: %s  %s\n", addr, hexbuf, asciibuf);
- 644:	9101c3e3 	add	x3, sp, #0x70
- 648:	910223e2 	add	x2, sp, #0x88
- 64c:	aa1803e1 	mov	x1, x24
- 650:	90000000 	adrp	x0, 0 <_vsprintf>
- 654:	91000000 	add	x0, x0, #0x0
- 658:	94000000 	bl	434 <printf>
+ 678:	9101c3e3 	add	x3, sp, #0x70
+ 67c:	910223e2 	add	x2, sp, #0x88
+ 680:	aa1803e1 	mov	x1, x24
+ 684:	90000000 	adrp	x0, 0 <_vsprintf>
+ 688:	91000000 	add	x0, x0, #0x0
+ 68c:	94000000 	bl	468 <printf>
 }
- 65c:	17fffff2 	b	624 <hexdump+0x88>
+ 690:	17fffff2 	b	658 <hexdump+0x88>
         *aptr++ = (b >= ' ' && b <= '~') ? b : '.';
- 660:	38001440 	strb	w0, [x2], #1
+ 694:	38001440 	strb	w0, [x2], #1
         *hptr++ = column == 7 ? '-' : ' ';
- 664:	aa0503e3 	mov	x3, x5
+ 698:	aa0503e3 	mov	x3, x5
         if (++column == 16) {
- 668:	52800101 	mov	w1, #0x8                   	// #8
- 66c:	1400000d 	b	6a0 <hexdump+0x104>
+ 69c:	52800101 	mov	w1, #0x8                   	// #8
+ 6a0:	1400000d 	b	6d4 <hexdump+0x104>
         *hptr++ = column == 7 ? '-' : ' ';
- 670:	91000c65 	add	x5, x3, #0x3
- 674:	528005a4 	mov	w4, #0x2d                  	// #45
- 678:	39000864 	strb	w4, [x3, #2]
+ 6a4:	91000c65 	add	x5, x3, #0x3
+ 6a8:	528005a4 	mov	w4, #0x2d                  	// #45
+ 6ac:	39000864 	strb	w4, [x3, #2]
         *aptr++ = (b >= ' ' && b <= '~') ? b : '.';
- 67c:	51008003 	sub	w3, w0, #0x20
- 680:	12001c63 	and	w3, w3, #0xff
- 684:	7101787f 	cmp	w3, #0x5e
- 688:	54fffec9 	b.ls	660 <hexdump+0xc4>  // b.plast
- 68c:	528005c0 	mov	w0, #0x2e                  	// #46
- 690:	39000040 	strb	w0, [x2]
+ 6b0:	51008003 	sub	w3, w0, #0x20
+ 6b4:	12001c63 	and	w3, w3, #0xff
+ 6b8:	7101787f 	cmp	w3, #0x5e
+ 6bc:	54fffec9 	b.ls	694 <hexdump+0xc4>  // b.plast
+ 6c0:	528005c0 	mov	w0, #0x2e                  	// #46
+ 6c4:	39000040 	strb	w0, [x2]
         if (++column == 16) {
- 694:	11000421 	add	w1, w1, #0x1
+ 6c8:	11000421 	add	w1, w1, #0x1
         *aptr++ = (b >= ' ' && b <= '~') ? b : '.';
- 698:	91000442 	add	x2, x2, #0x1
- 69c:	aa0503e3 	mov	x3, x5
+ 6cc:	91000442 	add	x2, x2, #0x1
+ 6d0:	aa0503e3 	mov	x3, x5
     while (i < count) {
- 6a0:	91000673 	add	x19, x19, #0x1
- 6a4:	eb17027f 	cmp	x19, x23
- 6a8:	54fffbc0 	b.eq	620 <hexdump+0x84>  // b.none
+ 6d4:	91000673 	add	x19, x19, #0x1
+ 6d8:	eb17027f 	cmp	x19, x23
+ 6dc:	54fffbc0 	b.eq	654 <hexdump+0x84>  // b.none
         unsigned char b = *((unsigned char *)buf + i);
- 6ac:	39400260 	ldrb	w0, [x19]
+ 6e0:	39400260 	ldrb	w0, [x19]
         if (b != last[column]) diff = 1;
- 6b0:	3861cac4 	ldrb	w4, [x22, w1, sxtw]
- 6b4:	6b00009f 	cmp	w4, w0
- 6b8:	1a990294 	csel	w20, w20, w25, eq  // eq = none
+ 6e4:	3861cac4 	ldrb	w4, [x22, w1, sxtw]
+ 6e8:	6b00009f 	cmp	w4, w0
+ 6ec:	1a990294 	csel	w20, w20, w25, eq  // eq = none
         last[column] = b;
- 6bc:	3821cac0 	strb	w0, [x22, w1, sxtw]
+ 6f0:	3821cac0 	strb	w0, [x22, w1, sxtw]
         *hptr++ = xdigits[(b >> 4) & 0xf];
- 6c0:	53047c04 	lsr	w4, w0, #4
- 6c4:	3864caa4 	ldrb	w4, [x21, w4, sxtw]
- 6c8:	39000064 	strb	w4, [x3]
+ 6f4:	53047c04 	lsr	w4, w0, #4
+ 6f8:	3864caa4 	ldrb	w4, [x21, w4, sxtw]
+ 6fc:	39000064 	strb	w4, [x3]
         *hptr++ = xdigits[b & 0xf];
- 6cc:	12000c04 	and	w4, w0, #0xf
- 6d0:	3864caa4 	ldrb	w4, [x21, w4, sxtw]
- 6d4:	39000464 	strb	w4, [x3, #1]
+ 700:	12000c04 	and	w4, w0, #0xf
+ 704:	3864caa4 	ldrb	w4, [x21, w4, sxtw]
+ 708:	39000464 	strb	w4, [x3, #1]
         *hptr++ = column == 7 ? '-' : ' ';
- 6d8:	71001c3f 	cmp	w1, #0x7
- 6dc:	54fffca0 	b.eq	670 <hexdump+0xd4>  // b.none
- 6e0:	91000c65 	add	x5, x3, #0x3
- 6e4:	52800404 	mov	w4, #0x20                  	// #32
- 6e8:	39000864 	strb	w4, [x3, #2]
+ 70c:	71001c3f 	cmp	w1, #0x7
+ 710:	54fffca0 	b.eq	6a4 <hexdump+0xd4>  // b.none
+ 714:	91000c65 	add	x5, x3, #0x3
+ 718:	52800404 	mov	w4, #0x20                  	// #32
+ 71c:	39000864 	strb	w4, [x3, #2]
         *aptr++ = (b >= ' ' && b <= '~') ? b : '.';
- 6ec:	51008004 	sub	w4, w0, #0x20
- 6f0:	12001c84 	and	w4, w4, #0xff
- 6f4:	71017c9f 	cmp	w4, #0x5f
- 6f8:	528005c4 	mov	w4, #0x2e                  	// #46
- 6fc:	1a843000 	csel	w0, w0, w4, cc  // cc = lo, ul, last
- 700:	39000040 	strb	w0, [x2]
+ 720:	51008004 	sub	w4, w0, #0x20
+ 724:	12001c84 	and	w4, w4, #0xff
+ 728:	71017c9f 	cmp	w4, #0x5f
+ 72c:	528005c4 	mov	w4, #0x2e                  	// #46
+ 730:	1a843000 	csel	w0, w0, w4, cc  // cc = lo, ul, last
+ 734:	39000040 	strb	w0, [x2]
         if (++column == 16) {
- 704:	11000421 	add	w1, w1, #0x1
- 708:	7100403f 	cmp	w1, #0x10
- 70c:	54fffc61 	b.ne	698 <hexdump+0xfc>  // b.any
+ 738:	11000421 	add	w1, w1, #0x1
+ 73c:	7100403f 	cmp	w1, #0x10
+ 740:	54fffc61 	b.ne	6cc <hexdump+0xfc>  // b.any
             *hptr = *aptr = 0;
- 710:	3900045f 	strb	wzr, [x2, #1]
- 714:	39000c7f 	strb	wzr, [x3, #3]
+ 744:	3900045f 	strb	wzr, [x2, #1]
+ 748:	39000c7f 	strb	wzr, [x3, #3]
             if (diff == 0) {
- 718:	35fff774 	cbnz	w20, 604 <hexdump+0x68>
+ 74c:	35fff774 	cbnz	w20, 638 <hexdump+0x68>
                 if (lastdiff == 1)
- 71c:	710004df 	cmp	w6, #0x1
- 720:	54fff6a0 	b.eq	5f4 <hexdump+0x58>  // b.none
+ 750:	710004df 	cmp	w6, #0x1
+ 754:	54fff6a0 	b.eq	628 <hexdump+0x58>  // b.none
             addr += 16;
- 724:	91004318 	add	x24, x24, #0x10
+ 758:	91004318 	add	x24, x24, #0x10
             lastdiff = diff;
- 728:	2a1403e6 	mov	w6, w20
+ 75c:	2a1403e6 	mov	w6, w20
             aptr = asciibuf;
- 72c:	9101c3e2 	add	x2, sp, #0x70
+ 760:	9101c3e2 	add	x2, sp, #0x70
             hptr = hexbuf;
- 730:	910223e3 	add	x3, sp, #0x88
+ 764:	910223e3 	add	x3, sp, #0x88
             diff = 0;
- 734:	52800014 	mov	w20, #0x0                   	// #0
+ 768:	52800014 	mov	w20, #0x0                   	// #0
             column = 0;
- 738:	52800001 	mov	w1, #0x0                   	// #0
- 73c:	17ffffd9 	b	6a0 <hexdump+0x104>
- 740:	d65f03c0 	ret
+ 76c:	52800001 	mov	w1, #0x0                   	// #0
+ 770:	17ffffd9 	b	6d4 <hexdump+0x104>
+ 774:	d65f03c0 	ret
 
-0000000000000744 <stkdump>:
+0000000000000778 <stkdump>:
 // course, the caveat that large stack allocations will break stkdump()
 #define MAX_LOCAL_ALLOC 0x200
 
 void
 stkdump(void)
 {
- 744:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
- 748:	910003fd 	mov	x29, sp
- 74c:	a90153f3 	stp	x19, x20, [sp, #16]
+ 778:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+ 77c:	910003fd 	mov	x29, sp
+ 780:	a90153f3 	stp	x19, x20, [sp, #16]
+ 784:	a9025bf5 	stp	x21, x22, [sp, #32]
     u64 * sp;
     u64 * pc;
     //u64 * fp;
     int i;
 
     asm volatile("mov %0, sp" : "=r" (sp) : );
- 750:	910003f4 	mov	x20, sp
- 754:	d2800000 	mov	x0, #0x0                   	// #0
+ 788:	910003f5 	mov	x21, sp
+ 78c:	d2800000 	mov	x0, #0x0                   	// #0
     //printf("sp(%x) sp[0](%x) sp[1](%x) sp[2](%x) sp[3](%x) sp[4](%x) sp[5](%x)\n",
     //        sp, sp[0], sp[1], sp[2], sp[3], sp[4], sp[5]);
 
     // find previous sp - it should not be far, stkdump has no args
     for (i = 0; i < 4; i++) {
         if (sp[i] > (u64)sp  &&  sp[i] < ((u64)sp + MAX_LOCAL_ALLOC))
- 758:	91080283 	add	x3, x20, #0x200
- 75c:	14000005 	b	770 <stkdump+0x2c>
+ 790:	910802a3 	add	x3, x21, #0x200
+ 794:	14000005 	b	7a8 <stkdump+0x30>
     for (i = 0; i < 4; i++) {
- 760:	11000453 	add	w19, w2, #0x1
- 764:	91000400 	add	x0, x0, #0x1
- 768:	f100101f 	cmp	x0, #0x4
- 76c:	54000380 	b.eq	7dc <stkdump+0x98>  // b.none
- 770:	2a0003e2 	mov	w2, w0
- 774:	2a0003f3 	mov	w19, w0
+ 798:	11000454 	add	w20, w2, #0x1
+ 79c:	91000400 	add	x0, x0, #0x1
+ 7a0:	f100101f 	cmp	x0, #0x4
+ 7a4:	540003a0 	b.eq	818 <stkdump+0xa0>  // b.none
+ 7a8:	2a0003e2 	mov	w2, w0
+ 7ac:	2a0003f4 	mov	w20, w0
         if (sp[i] > (u64)sp  &&  sp[i] < ((u64)sp + MAX_LOCAL_ALLOC))
- 778:	f8607a81 	ldr	x1, [x20, x0, lsl #3]
- 77c:	eb14003f 	cmp	x1, x20
- 780:	54ffff09 	b.ls	760 <stkdump+0x1c>  // b.plast
- 784:	eb03003f 	cmp	x1, x3
- 788:	54fffec2 	b.cs	760 <stkdump+0x1c>  // b.hs, b.nlast
+ 7b0:	f8607aa1 	ldr	x1, [x21, x0, lsl #3]
+ 7b4:	eb15003f 	cmp	x1, x21
+ 7b8:	54ffff09 	b.ls	798 <stkdump+0x20>  // b.plast
+ 7bc:	eb03003f 	cmp	x1, x3
+ 7c0:	54fffec2 	b.cs	798 <stkdump+0x20>  // b.hs, b.nlast
             break;
     }
 
     if (i >= 4) {
- 78c:	71000c1f 	cmp	w0, #0x3
- 790:	5400026c 	b.gt	7dc <stkdump+0x98>
- 794:	a9025bf5 	stp	x21, x22, [sp, #32]
- 798:	a90363f7 	stp	x23, x24, [sp, #48]
- 79c:	f90023f9 	str	x25, [sp, #64]
+ 7c4:	71000c1f 	cmp	w0, #0x3
+ 7c8:	5400028c 	b.gt	818 <stkdump+0xa0>
+ 7cc:	a90363f7 	stp	x23, x24, [sp, #48]
+ 7d0:	f90023f9 	str	x25, [sp, #64]
+ 7d4:	d53bd053 	mrs	x19, tpidr_el0
         printf("frame not found ... %x,%x,%x,%x\n", sp[i], sp[i+1], sp[i+2], sp[i+3]);
         return;
     }
 
-    printf("stack:\n");
- 7a0:	90000000 	adrp	x0, 0 <_vsprintf>
- 7a4:	91000000 	add	x0, x0, #0x0
- 7a8:	94000000 	bl	434 <printf>
-
-    sp = (u64 *)sp[i];
- 7ac:	f873da95 	ldr	x21, [x20, w19, sxtw #3]
-    pc = (u64 *)sp[i+1];
- 7b0:	8b33ceb3 	add	x19, x21, w19, sxtw #3
- 7b4:	f9400663 	ldr	x3, [x19, #8]
- 7b8:	d53bd059 	mrs	x25, tpidr_el0
     struct thread * th = get_thread_data();
     char * q = th->print_buf;
- 7bc:	91020339 	add	x25, x25, #0x80
- 7c0:	aa1903f3 	mov	x19, x25
+ 7d8:	91020279 	add	x25, x19, #0x80
+    q += sprintf(q, "%s", "*** stack:\n");
+ 7dc:	d2800182 	mov	x2, #0xc                   	// #12
+ 7e0:	90000001 	adrp	x1, 0 <_vsprintf>
+ 7e4:	91000021 	add	x1, x1, #0x0
+ 7e8:	aa1903e0 	mov	x0, x25
+ 7ec:	94000000 	bl	58c <memcpy>
+ 7f0:	91022e73 	add	x19, x19, #0x8b
+
+    sp = (u64 *)sp[i];
+ 7f4:	f874dab5 	ldr	x21, [x21, w20, sxtw #3]
+    pc = (u64 *)sp[i+1];
+ 7f8:	8b34ceb4 	add	x20, x21, w20, sxtw #3
+ 7fc:	f9400683 	ldr	x3, [x20, #8]
     do {
         q += sprintf(q, "*** exc: cpu(%d) pc(%x) sp(%x) ret(%x)",
- 7c4:	90000017 	adrp	x23, 0 <_vsprintf>
- 7c8:	910002f7 	add	x23, x23, #0x0
+ 800:	90000017 	adrp	x23, 0 <_vsprintf>
+ 804:	910002f7 	add	x23, x23, #0x0
             *q++ = '\n';
             break;
         }
 
         for (i = 2; (u64)(sp + i) < sp[0] ; i++)
             q += sprintf(q, " %x", sp[i]);
- 7cc:	90000016 	adrp	x22, 0 <_vsprintf>
- 7d0:	910002d6 	add	x22, x22, #0x0
+ 808:	90000016 	adrp	x22, 0 <_vsprintf>
+ 80c:	910002d6 	add	x22, x22, #0x0
         pc = (u64 *)sp[1];
         sp = (u64 *)sp[0];
         *q++ = '\n';
- 7d4:	52800158 	mov	w24, #0xa                   	// #10
- 7d8:	14000018 	b	838 <stkdump+0xf4>
+ 810:	52800158 	mov	w24, #0xa                   	// #10
+ 814:	14000018 	b	874 <stkdump+0xfc>
         printf("frame not found ... %x,%x,%x,%x\n", sp[i], sp[i+1], sp[i+2], sp[i+3]);
- 7dc:	8b33ce80 	add	x0, x20, w19, sxtw #3
- 7e0:	f9400c04 	ldr	x4, [x0, #24]
- 7e4:	f9400803 	ldr	x3, [x0, #16]
- 7e8:	f9400402 	ldr	x2, [x0, #8]
- 7ec:	f873da81 	ldr	x1, [x20, w19, sxtw #3]
- 7f0:	90000000 	adrp	x0, 0 <_vsprintf>
- 7f4:	91000000 	add	x0, x0, #0x0
- 7f8:	94000000 	bl	434 <printf>
+ 818:	8b34cea0 	add	x0, x21, w20, sxtw #3
+ 81c:	f9400c04 	ldr	x4, [x0, #24]
+ 820:	f9400803 	ldr	x3, [x0, #16]
+ 824:	f9400402 	ldr	x2, [x0, #8]
+ 828:	f874daa1 	ldr	x1, [x21, w20, sxtw #3]
+ 82c:	90000000 	adrp	x0, 0 <_vsprintf>
+ 830:	91000000 	add	x0, x0, #0x0
+ 834:	94000000 	bl	468 <printf>
         return;
- 7fc:	14000009 	b	820 <stkdump+0xdc>
+ 838:	14000008 	b	858 <stkdump+0xe0>
             *q++ = '\n';
- 800:	52800140 	mov	w0, #0xa                   	// #10
- 804:	39000260 	strb	w0, [x19]
+ 83c:	52800140 	mov	w0, #0xa                   	// #10
+ 840:	39000260 	strb	w0, [x19]
     } while (1);
     *q = '\0';
- 808:	3900067f 	strb	wzr, [x19, #1]
+ 844:	3900067f 	strb	wzr, [x19, #1]
 
     puts(th->print_buf);
- 80c:	aa1903e0 	mov	x0, x25
- 810:	94000000 	bl	360 <puts>
- 814:	a9425bf5 	ldp	x21, x22, [sp, #32]
- 818:	a94363f7 	ldp	x23, x24, [sp, #48]
- 81c:	f94023f9 	ldr	x25, [sp, #64]
+ 848:	aa1903e0 	mov	x0, x25
+ 84c:	94000000 	bl	360 <puts>
+ 850:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 854:	f94023f9 	ldr	x25, [sp, #64]
 }
- 820:	a94153f3 	ldp	x19, x20, [sp, #16]
- 824:	a8c57bfd 	ldp	x29, x30, [sp], #80
- 828:	d65f03c0 	ret
+ 858:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 85c:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 860:	a8c57bfd 	ldp	x29, x30, [sp], #80
+ 864:	d65f03c0 	ret
         pc = (u64 *)sp[1];
- 82c:	f94006a3 	ldr	x3, [x21, #8]
+ 868:	f94006a3 	ldr	x3, [x21, #8]
         sp = (u64 *)sp[0];
- 830:	aa0003f5 	mov	x21, x0
+ 86c:	aa0003f5 	mov	x21, x0
         *q++ = '\n';
- 834:	38001678 	strb	w24, [x19], #1
- 838:	d53bd040 	mrs	x0, tpidr_el0
+ 870:	38001678 	strb	w24, [x19], #1
+ 874:	d53bd040 	mrs	x0, tpidr_el0
         q += sprintf(q, "*** exc: cpu(%d) pc(%x) sp(%x) ret(%x)",
- 83c:	f94002a5 	ldr	x5, [x21]
- 840:	aa1503e4 	mov	x4, x21
- 844:	b9400802 	ldr	w2, [x0, #8]
- 848:	aa1703e1 	mov	x1, x23
- 84c:	aa1303e0 	mov	x0, x19
- 850:	94000000 	bl	3d4 <sprintf>
- 854:	8b20c273 	add	x19, x19, w0, sxtw
+ 878:	f94002a5 	ldr	x5, [x21]
+ 87c:	aa1503e4 	mov	x4, x21
+ 880:	b9400802 	ldr	w2, [x0, #8]
+ 884:	aa1703e1 	mov	x1, x23
+ 888:	aa1303e0 	mov	x0, x19
+ 88c:	94000000 	bl	408 <sprintf>
+ 890:	8b20c273 	add	x19, x19, w0, sxtw
         if (sp[0] < (u64)sp  ||  sp[0] > ((u64)sp + MAX_LOCAL_ALLOC)) {
- 858:	f94002a0 	ldr	x0, [x21]
- 85c:	eb15001f 	cmp	x0, x21
- 860:	54fffd03 	b.cc	800 <stkdump+0xbc>  // b.lo, b.ul, b.last
- 864:	910802a1 	add	x1, x21, #0x200
- 868:	eb01001f 	cmp	x0, x1
- 86c:	54fffca8 	b.hi	800 <stkdump+0xbc>  // b.pmore
+ 894:	f94002a0 	ldr	x0, [x21]
+ 898:	eb15001f 	cmp	x0, x21
+ 89c:	54fffd03 	b.cc	83c <stkdump+0xc4>  // b.lo, b.ul, b.last
+ 8a0:	910802a1 	add	x1, x21, #0x200
+ 8a4:	eb01001f 	cmp	x0, x1
+ 8a8:	54fffca8 	b.hi	83c <stkdump+0xc4>  // b.pmore
         for (i = 2; (u64)(sp + i) < sp[0] ; i++)
- 870:	910042b4 	add	x20, x21, #0x10
- 874:	eb14001f 	cmp	x0, x20
- 878:	54fffda9 	b.ls	82c <stkdump+0xe8>  // b.plast
+ 8ac:	910042b4 	add	x20, x21, #0x10
+ 8b0:	eb14001f 	cmp	x0, x20
+ 8b4:	54fffda9 	b.ls	868 <stkdump+0xf0>  // b.plast
             q += sprintf(q, " %x", sp[i]);
- 87c:	f8408682 	ldr	x2, [x20], #8
- 880:	aa1603e1 	mov	x1, x22
- 884:	aa1303e0 	mov	x0, x19
- 888:	94000000 	bl	3d4 <sprintf>
- 88c:	8b20c273 	add	x19, x19, w0, sxtw
+ 8b8:	f8408682 	ldr	x2, [x20], #8
+ 8bc:	aa1603e1 	mov	x1, x22
+ 8c0:	aa1303e0 	mov	x0, x19
+ 8c4:	94000000 	bl	408 <sprintf>
+ 8c8:	8b20c273 	add	x19, x19, w0, sxtw
         for (i = 2; (u64)(sp + i) < sp[0] ; i++)
- 890:	f94002a0 	ldr	x0, [x21]
- 894:	eb14001f 	cmp	x0, x20
- 898:	54ffff28 	b.hi	87c <stkdump+0x138>  // b.pmore
- 89c:	17ffffe4 	b	82c <stkdump+0xe8>
+ 8cc:	f94002a0 	ldr	x0, [x21]
+ 8d0:	eb14001f 	cmp	x0, x20
+ 8d4:	54ffff28 	b.hi	8b8 <stkdump+0x140>  // b.pmore
+ 8d8:	17ffffe4 	b	868 <stkdump+0xf0>

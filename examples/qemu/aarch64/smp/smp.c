@@ -5,7 +5,7 @@ static int smp_next_cpu = 1;    // 0 is the boot cpu
 
 
 static inline void
-armv8_set_tp(u64 tp)
+armv8_set_tp(void * tp)
 {
     asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
 }
@@ -13,8 +13,6 @@ armv8_set_tp(u64 tp)
 void
 smp_newcpu(struct thread * th)
 {
-    armv8_set_tp(th->stack - 0x1000);
-
     printf("smp%d: el%d tls(%x) sp(%x)\n", th->thno, armv8_get_el(),
                                     armv8_get_tp(), armv8_get_sp());
 
@@ -29,12 +27,18 @@ smp_start_thread(int (* func)(struct thread *), void * arg0)
     int cpu = smp_next_cpu++;
 
     struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
+    if (th == 0) {
+        printf("pool4k empty - cannot start thread\n");
+        return -1;
+    }
 
-    th->stack = (u64)th + 0x1000;
-    th->func  = func;
-    th->thno  = cpu;
-    th->arg0  = arg0;
+    th->sp   = (u64)th + 0x1000;
+    th->thno = cpu;
+    th->func = func;
+    th->arg0 = arg0;
+    th->tsk  = 0;
 
+    int rc;
     // http://wiki.baylibre.com/doku.php?id=psci
     //   psci {
     //          migrate = < 0xc4000005 >;
@@ -47,7 +51,6 @@ smp_start_thread(int (* func)(struct thread *), void * arg0)
     //
     // power on cpu N, point it at the smp_entry boot code,
     // and use the 'th' pointer as 'context'
-    int rc;
     asm volatile (
         "ldr  x0, =0xc4000003   \n" // cpu on
         "mov  x1, %1            \n" // cpu number
@@ -79,6 +82,11 @@ smp_init(void)
 {
     // announce the boot thread
     printf("smp0: el%d tls(%x) sp(%x)\n", armv8_get_el(), armv8_get_tp(), armv8_get_sp());
+
+    // make it look legitimate
+    struct thread * th = get_thread_data();
+    th->sp   = armv8_get_sp();
+    th->thno = 0;
 
     int n = 1;      // the boot cpu counts as 1
     while (smp_start_thread(thd, (void *)(u64)n) == 0)

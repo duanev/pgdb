@@ -47,12 +47,12 @@ struct mem_pool {
     struct bitmap map;      // must be last - bitmap blks array at end ...
 };
 
-extern struct mem_pool * pool0;
+extern struct mem_pool * pool128k;
 extern struct mem_pool * pool4k;
 
 u64    mem_alloc(struct mem_pool * pool, int n);
 void   mem_free(struct mem_pool * pool, u64 addr, int n);
-struct mem_pool * mem_pool_create(char * name, u64 base, u64 size, u64 unit_size);
+struct mem_pool * mem_pool_create(char * name, u64 base, u64 size, u64 unit_size, int init);
 
 /* -------- library functions */
 
@@ -71,14 +71,14 @@ void   stkdump(void);
 /* -------- smp support */
 
 struct thread {
-    u64             stack;      // boot.s expects this to be first
+    u64             sp;         // boot.s expects this to be first
     u64             thno;
     struct task *   tsk;
     int          (* func)(struct thread *);
     void *          arg0;
     u64             _res1;
-    u64             _res2;      // align scratch/print_buf to
-    u64             _res3;      // cache lines (easier to debug)
+    u64             _res2;      // align scratch/print_buf to a
+    u64             _res3;      // cache line (easier to debug)
 
     char            scratch[64];
     char            print_buf[0];

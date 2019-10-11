@@ -18,8 +18,8 @@ exc_handler(u64 vecno, u64 esr, u64 elr, u64 far)
 
 
 extern int _free_mem;
-struct mem_pool * pool0  = 0;
-struct mem_pool * pool4k = 0;
+struct mem_pool * pool128k = 0;
+struct mem_pool * pool4k   = 0;
 
 void
 main(int ac, char * av[])
@@ -28,20 +28,20 @@ main(int ac, char * av[])
 
     // establish the system memory pools from DRAM following the 'data' segment (see tasks.ld)
 
-    pool0 = mem_pool_create("128k top", (u64)&_free_mem, 256 * 1024 * 1024, 128 * 1024);
-    if (pool0 == 0)  return;
-    pool4k = (struct mem_pool *)mem_alloc(pool0, 4);
-    mem_pool_create("4k gp", (u64)pool4k, pool0->usize * 4, 4 * 1024);
+    // qemu -m 256  (and see smp.ld)
+
+#   define LOADADDR 0x40000000
+#   define SIZE4k   (LOADADDR + 128 * 1024 * 1024 - (u64)&_free_mem)
+    pool4k = mem_pool_create("4k gp", (u64)&_free_mem, SIZE4k, 4 * 1024, 1);
     if (pool4k == 0)  return;
+
+#   define SIZE128k (128 * 1024 * 1024)
+    pool128k = mem_pool_create("128k gp", (u64)&_free_mem + SIZE4k, SIZE128k, 128 * 1024, 1);
+    if (pool128k == 0)  return;
 
     smp_init();
 
     do {
     } while (con_peek() == 0);
     con_getc();
-
-    // reset the system memory pools
-
-    memset((void *)pool4k, 0, sizeof(struct mem_pool));
-    memset((void *)pool0,  0, sizeof(struct mem_pool));
 }

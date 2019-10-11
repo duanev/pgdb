@@ -68,125 +68,142 @@ armv8_get_tp(void)
   84:	910003fd 	mov	x29, sp
   88:	f9000bf3 	str	x19, [sp, #16]
   8c:	aa0003f3 	mov	x19, x0
-    armv8_set_tp(th->stack - 0x1000);
-  90:	f9400000 	ldr	x0, [x0]
-  94:	d1400400 	sub	x0, x0, #0x1, lsl #12
-    asm volatile("msr tpidr_el0, %0" : : "r" (tp) : );
-  98:	d51bd040 	msr	tpidr_el0, x0
     asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
-  9c:	d5384242 	mrs	x2, currentel
-  a0:	d342fc42 	lsr	x2, x2, #2
+  90:	d5384242 	mrs	x2, currentel
+  94:	d342fc42 	lsr	x2, x2, #2
     asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
-  a4:	d53bd043 	mrs	x3, tpidr_el0
+  98:	d53bd043 	mrs	x3, tpidr_el0
 
 static inline u64
 armv8_get_sp(void)
 {
     u64 sp;
     asm volatile("mov %0, sp"  : "=r" (sp) : );
-  a8:	910003e4 	mov	x4, sp
+  9c:	910003e4 	mov	x4, sp
     printf("smp%d: el%d tls(%x) sp(%x)\n", th->thno, armv8_get_el(),
-  ac:	f9400661 	ldr	x1, [x19, #8]
-  b0:	90000000 	adrp	x0, 0 <thd>
-  b4:	91000000 	add	x0, x0, #0x0
-  b8:	94000000 	bl	0 <printf>
+  a0:	f9400401 	ldr	x1, [x0, #8]
+  a4:	90000000 	adrp	x0, 0 <thd>
+  a8:	91000000 	add	x0, x0, #0x0
+  ac:	94000000 	bl	0 <printf>
     th->func(th);
-  bc:	f9400e61 	ldr	x1, [x19, #24]
-  c0:	aa1303e0 	mov	x0, x19
-  c4:	d63f0020 	blr	x1
+  b0:	f9400e61 	ldr	x1, [x19, #24]
+  b4:	aa1303e0 	mov	x0, x19
+  b8:	d63f0020 	blr	x1
     asm volatile("wfi");        // low power sleep
-  c8:	d503207f 	wfi
+  bc:	d503207f 	wfi
 };
-  cc:	f9400bf3 	ldr	x19, [sp, #16]
-  d0:	a8c27bfd 	ldp	x29, x30, [sp], #32
-  d4:	d65f03c0 	ret
+  c0:	f9400bf3 	ldr	x19, [sp, #16]
+  c4:	a8c27bfd 	ldp	x29, x30, [sp], #32
+  c8:	d65f03c0 	ret
 
-00000000000000d8 <smp_init>:
+00000000000000cc <smp_init>:
 
 int
 smp_init(void)
 {
-  d8:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
-  dc:	910003fd 	mov	x29, sp
-  e0:	a90153f3 	stp	x19, x20, [sp, #16]
-  e4:	a9025bf5 	stp	x21, x22, [sp, #32]
-  e8:	a90363f7 	stp	x23, x24, [sp, #48]
-  ec:	f90023f9 	str	x25, [sp, #64]
+  cc:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+  d0:	910003fd 	mov	x29, sp
+  d4:	a90153f3 	stp	x19, x20, [sp, #16]
+  d8:	a9025bf5 	stp	x21, x22, [sp, #32]
+  dc:	a90363f7 	stp	x23, x24, [sp, #48]
+  e0:	a9046bf9 	stp	x25, x26, [sp, #64]
     asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
-  f0:	d5384241 	mrs	x1, currentel
-  f4:	d342fc21 	lsr	x1, x1, #2
+  e4:	d5384241 	mrs	x1, currentel
+  e8:	d342fc21 	lsr	x1, x1, #2
     asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
-  f8:	d53bd042 	mrs	x2, tpidr_el0
+  ec:	d53bd042 	mrs	x2, tpidr_el0
     asm volatile("mov %0, sp"  : "=r" (sp) : );
-  fc:	910003e3 	mov	x3, sp
+  f0:	910003e3 	mov	x3, sp
     // announce the boot thread
     printf("smp0: el%d tls(%x) sp(%x)\n", armv8_get_el(), armv8_get_tp(), armv8_get_sp());
- 100:	90000000 	adrp	x0, 0 <thd>
- 104:	91000000 	add	x0, x0, #0x0
- 108:	94000000 	bl	0 <printf>
+  f4:	90000000 	adrp	x0, 0 <thd>
+  f8:	91000000 	add	x0, x0, #0x0
+  fc:	94000000 	bl	0 <printf>
+    asm volatile("mrs %0, tpidr_el0" : "=r" (tp) : : );
+ 100:	d53bd040 	mrs	x0, tpidr_el0
+    asm volatile("mov %0, sp"  : "=r" (sp) : );
+ 104:	910003e1 	mov	x1, sp
+
+    // make it look legitimate
+    struct thread * th = get_thread_data();
+    th->sp   = armv8_get_sp();
+ 108:	f9000001 	str	x1, [x0]
+    th->thno = 0;
+ 10c:	f900041f 	str	xzr, [x0, #8]
 
     int n = 1;      // the boot cpu counts as 1
     while (smp_start_thread(thd, (void *)(u64)n) == 0)
- 10c:	d2800034 	mov	x20, #0x1                   	// #1
+ 110:	d2800033 	mov	x19, #0x1                   	// #1
     int cpu = smp_next_cpu++;
- 110:	90000015 	adrp	x21, 0 <thd>
- 114:	910002b5 	add	x21, x21, #0x0
+ 114:	90000015 	adrp	x21, 0 <thd>
+ 118:	910002b5 	add	x21, x21, #0x0
     struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
- 118:	90000019 	adrp	x25, 0 <pool4k>
- 11c:	52800038 	mov	w24, #0x1                   	// #1
-    th->func  = func;
- 120:	90000017 	adrp	x23, 0 <thd>
- 124:	910002f7 	add	x23, x23, #0x0
- 128:	2a1403f6 	mov	w22, w20
+ 11c:	9000001a 	adrp	x26, 0 <pool4k>
+ 120:	52800039 	mov	w25, #0x1                   	// #1
+    th->func = func;
+ 124:	90000018 	adrp	x24, 0 <thd>
+ 128:	91000318 	add	x24, x24, #0x0
+ 12c:	2a1303f7 	mov	w23, w19
+ 130:	2a1303f6 	mov	w22, w19
     int cpu = smp_next_cpu++;
- 12c:	b94002b3 	ldr	w19, [x21]
- 130:	11000660 	add	w0, w19, #0x1
- 134:	b90002a0 	str	w0, [x21]
+ 134:	b94002b4 	ldr	w20, [x21]
+ 138:	11000680 	add	w0, w20, #0x1
+ 13c:	b90002a0 	str	w0, [x21]
     struct thread * th = (struct thread *)mem_alloc(pool4k, 1);
- 138:	2a1803e1 	mov	w1, w24
- 13c:	f9400320 	ldr	x0, [x25]
- 140:	94000000 	bl	0 <mem_alloc>
- 144:	aa0003e4 	mov	x4, x0
-    th->stack = (u64)th + 0x1000;
- 148:	91400400 	add	x0, x0, #0x1, lsl #12
- 14c:	f9000080 	str	x0, [x4]
-    th->func  = func;
- 150:	f9000c97 	str	x23, [x4, #24]
-    th->thno  = cpu;
- 154:	93407e60 	sxtw	x0, w19
- 158:	f9000480 	str	x0, [x4, #8]
-    th->arg0  = arg0;
- 15c:	f9001094 	str	x20, [x4, #32]
+ 140:	2a1903e1 	mov	w1, w25
+ 144:	f9400340 	ldr	x0, [x26]
+ 148:	94000000 	bl	0 <mem_alloc>
+ 14c:	aa0003e4 	mov	x4, x0
+    if (th == 0) {
+ 150:	b40003c0 	cbz	x0, 1c8 <smp_init+0xfc>
+    th->sp   = (u64)th + 0x1000;
+ 154:	91400400 	add	x0, x0, #0x1, lsl #12
+ 158:	f9000080 	str	x0, [x4]
+    th->thno = cpu;
+ 15c:	93407e80 	sxtw	x0, w20
+ 160:	f9000480 	str	x0, [x4, #8]
+    th->func = func;
+ 164:	f9000c98 	str	x24, [x4, #24]
+    th->arg0 = arg0;
+ 168:	f9001093 	str	x19, [x4, #32]
+    th->tsk  = 0;
+ 16c:	f900089f 	str	xzr, [x4, #16]
     asm volatile (
- 160:	580002c0 	ldr	x0, 1b8 <smp_init+0xe0>
- 164:	aa1303e1 	mov	x1, x19
- 168:	580002c2 	ldr	x2, 1c0 <smp_init+0xe8>
- 16c:	aa0403e3 	mov	x3, x4
- 170:	d4000002 	hvc	#0x0
- 174:	aa0003e4 	mov	x4, x0
+ 170:	58000340 	ldr	x0, 1d8 <smp_init+0x10c>
+ 174:	aa1403e1 	mov	x1, x20
+ 178:	58000342 	ldr	x2, 1e0 <smp_init+0x114>
+ 17c:	aa0403e3 	mov	x3, x4
+ 180:	d4000002 	hvc	#0x0
+ 184:	aa0003e4 	mov	x4, x0
     while (smp_start_thread(thd, (void *)(u64)n) == 0)
- 178:	350000a4 	cbnz	w4, 18c <smp_init+0xb4>
+ 188:	350000a4 	cbnz	w4, 19c <smp_init+0xd0>
         if (++n >= MAX_CPUS)
- 17c:	11000696 	add	w22, w20, #0x1
- 180:	91000694 	add	x20, x20, #0x1
- 184:	f100229f 	cmp	x20, #0x8
- 188:	54fffd01 	b.ne	128 <smp_init+0x50>  // b.any
+ 18c:	110006f6 	add	w22, w23, #0x1
+ 190:	91000673 	add	x19, x19, #0x1
+ 194:	f100227f 	cmp	x19, #0x8
+ 198:	54fffca1 	b.ne	12c <smp_init+0x60>  // b.any
             break;
 
     printf("smp_init complete %d cpus\n", n);
- 18c:	2a1603e1 	mov	w1, w22
- 190:	90000000 	adrp	x0, 0 <thd>
- 194:	91000000 	add	x0, x0, #0x0
- 198:	94000000 	bl	0 <printf>
+ 19c:	2a1603e1 	mov	w1, w22
+ 1a0:	90000000 	adrp	x0, 0 <thd>
+ 1a4:	91000000 	add	x0, x0, #0x0
+ 1a8:	94000000 	bl	0 <printf>
 
     return n;
 }
- 19c:	2a1603e0 	mov	w0, w22
- 1a0:	a94153f3 	ldp	x19, x20, [sp, #16]
- 1a4:	a9425bf5 	ldp	x21, x22, [sp, #32]
- 1a8:	a94363f7 	ldp	x23, x24, [sp, #48]
- 1ac:	f94023f9 	ldr	x25, [sp, #64]
- 1b0:	a8c57bfd 	ldp	x29, x30, [sp], #80
- 1b4:	d65f03c0 	ret
- 1b8:	c4000003 	.word	0xc4000003
+ 1ac:	2a1603e0 	mov	w0, w22
+ 1b0:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 1b4:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 1b8:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 1bc:	a9446bf9 	ldp	x25, x26, [sp, #64]
+ 1c0:	a8c57bfd 	ldp	x29, x30, [sp], #80
+ 1c4:	d65f03c0 	ret
+        printf("pool4k empty - cannot start thread\n");
+ 1c8:	90000000 	adrp	x0, 0 <thd>
+ 1cc:	91000000 	add	x0, x0, #0x0
+ 1d0:	94000000 	bl	0 <printf>
+        return -1;
+ 1d4:	17fffff2 	b	19c <smp_init+0xd0>
+ 1d8:	c4000003 	.word	0xc4000003
 	...

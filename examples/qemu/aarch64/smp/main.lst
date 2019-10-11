@@ -39,13 +39,13 @@ armv8_get_tp(void)
   3c:	d65f03c0 	ret
 
 0000000000000040 <main>:
-struct mem_pool * pool0  = 0;
-struct mem_pool * pool4k = 0;
+struct mem_pool * pool128k = 0;
+struct mem_pool * pool4k   = 0;
 
 void
 main(int ac, char * av[])
 {
-  40:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+  40:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
   44:	910003fd 	mov	x29, sp
     asm("mrs %0, currentel; lsr %0, %0, 2" : "=r" (status) : : );
   48:	d5384241 	mrs	x1, currentel
@@ -55,69 +55,49 @@ main(int ac, char * av[])
   54:	91000000 	add	x0, x0, #0x0
   58:	94000000 	bl	0 <printf>
 
-    // establish the system memory pools from DRAM following the 'data' segment (see tasks.ld)
+    // qemu -m 256  (and see smp.ld)
 
-    pool0 = mem_pool_create("128k top", (u64)&_free_mem, 256 * 1024 * 1024, 128 * 1024);
-  5c:	d2a00043 	mov	x3, #0x20000               	// #131072
-  60:	d2a20002 	mov	x2, #0x10000000            	// #268435456
-  64:	90000001 	adrp	x1, 0 <_free_mem>
-  68:	91000021 	add	x1, x1, #0x0
-  6c:	90000000 	adrp	x0, 0 <exc_handler>
-  70:	91000000 	add	x0, x0, #0x0
-  74:	94000000 	bl	0 <mem_pool_create>
-  78:	90000001 	adrp	x1, 0 <exc_handler>
-  7c:	f9000020 	str	x0, [x1]
-    if (pool0 == 0)  return;
-  80:	b4000440 	cbz	x0, 108 <main+0xc8>
-  84:	a90153f3 	stp	x19, x20, [sp, #16]
-    pool4k = (struct mem_pool *)mem_alloc(pool0, 4);
-  88:	52800081 	mov	w1, #0x4                   	// #4
-  8c:	94000000 	bl	0 <mem_alloc>
-  90:	aa0003e1 	mov	x1, x0
-  94:	90000000 	adrp	x0, 0 <exc_handler>
-  98:	91000013 	add	x19, x0, #0x0
-  9c:	f9000661 	str	x1, [x19, #8]
-    mem_pool_create("4k gp", (u64)pool4k, pool0->usize * 4, 4 * 1024);
-  a0:	f9400000 	ldr	x0, [x0]
-  a4:	f9400802 	ldr	x2, [x0, #16]
-  a8:	d2820003 	mov	x3, #0x1000                	// #4096
-  ac:	d37ef442 	lsl	x2, x2, #2
-  b0:	90000000 	adrp	x0, 0 <exc_handler>
-  b4:	91000000 	add	x0, x0, #0x0
-  b8:	94000000 	bl	0 <mem_pool_create>
+#   define LOADADDR 0x40000000
+#   define SIZE4k   (LOADADDR + 128 * 1024 * 1024 - (u64)&_free_mem)
+    pool4k = mem_pool_create("4k gp", (u64)&_free_mem, SIZE4k, 4 * 1024, 1);
+  5c:	90000001 	adrp	x1, 0 <_free_mem>
+  60:	91000021 	add	x1, x1, #0x0
+  64:	52800024 	mov	w4, #0x1                   	// #1
+  68:	d2820003 	mov	x3, #0x1000                	// #4096
+  6c:	d2a90002 	mov	x2, #0x48000000            	// #1207959552
+  70:	cb010042 	sub	x2, x2, x1
+  74:	90000000 	adrp	x0, 0 <exc_handler>
+  78:	91000000 	add	x0, x0, #0x0
+  7c:	94000000 	bl	0 <mem_pool_create>
+  80:	90000001 	adrp	x1, 0 <exc_handler>
+  84:	f9000020 	str	x0, [x1]
     if (pool4k == 0)  return;
-  bc:	f9400660 	ldr	x0, [x19, #8]
-  c0:	b4000280 	cbz	x0, 110 <main+0xd0>
+  88:	b4000200 	cbz	x0, c8 <main+0x88>
+
+#   define SIZE128k (128 * 1024 * 1024)
+    pool128k = mem_pool_create("128k gp", (u64)&_free_mem + SIZE4k, SIZE128k, 128 * 1024, 1);
+  8c:	52800024 	mov	w4, #0x1                   	// #1
+  90:	d2a00043 	mov	x3, #0x20000               	// #131072
+  94:	d2a10002 	mov	x2, #0x8000000             	// #134217728
+  98:	d2a90001 	mov	x1, #0x48000000            	// #1207959552
+  9c:	90000000 	adrp	x0, 0 <exc_handler>
+  a0:	91000000 	add	x0, x0, #0x0
+  a4:	94000000 	bl	0 <mem_pool_create>
+  a8:	90000001 	adrp	x1, 0 <exc_handler>
+  ac:	f9000020 	str	x0, [x1]
+    if (pool128k == 0)  return;
+  b0:	b40000c0 	cbz	x0, c8 <main+0x88>
 
     smp_init();
-  c4:	94000000 	bl	0 <smp_init>
+  b4:	94000000 	bl	0 <smp_init>
 
     do {
     } while (con_peek() == 0);
-  c8:	94000000 	bl	0 <con_peek>
-  cc:	12001c00 	and	w0, w0, #0xff
-  d0:	34ffffc0 	cbz	w0, c8 <main+0x88>
+  b8:	94000000 	bl	0 <con_peek>
+  bc:	12001c00 	and	w0, w0, #0xff
+  c0:	34ffffc0 	cbz	w0, b8 <main+0x78>
     con_getc();
-  d4:	94000000 	bl	0 <con_getc>
-
-    // reset the system memory pools
-
-    memset((void *)pool4k, 0, sizeof(struct mem_pool));
-  d8:	90000013 	adrp	x19, 0 <exc_handler>
-  dc:	91000260 	add	x0, x19, #0x0
-  e0:	d2800514 	mov	x20, #0x28                  	// #40
-  e4:	aa1403e2 	mov	x2, x20
-  e8:	52800001 	mov	w1, #0x0                   	// #0
-  ec:	f9400400 	ldr	x0, [x0, #8]
-  f0:	94000000 	bl	0 <memset>
-    memset((void *)pool0,  0, sizeof(struct mem_pool));
-  f4:	aa1403e2 	mov	x2, x20
-  f8:	52800001 	mov	w1, #0x0                   	// #0
-  fc:	f9400260 	ldr	x0, [x19]
- 100:	94000000 	bl	0 <memset>
- 104:	a94153f3 	ldp	x19, x20, [sp, #16]
+  c4:	94000000 	bl	0 <con_getc>
 }
- 108:	a8c27bfd 	ldp	x29, x30, [sp], #32
- 10c:	d65f03c0 	ret
- 110:	a94153f3 	ldp	x19, x20, [sp, #16]
- 114:	17fffffd 	b	108 <main+0xc8>
+  c8:	a8c17bfd 	ldp	x29, x30, [sp], #16
+  cc:	d65f03c0 	ret
