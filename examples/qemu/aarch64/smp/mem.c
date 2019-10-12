@@ -133,7 +133,7 @@ mem_alloc(struct mem_pool * pool, int n)
 }
 
 void
-mem_free(struct mem_pool * pool, u64 addr, int n)
+mem_free(struct mem_pool * pool, u64 addr, int n, int zero)
 {
     if (addr < pool->base  ||  addr >= pool->base + pool->size) {
         printf("mem_free error: 0x%lx is not within pool %s\n", addr, pool->name);
@@ -141,9 +141,8 @@ mem_free(struct mem_pool * pool, u64 addr, int n)
         return;
     }
 
-    // security is more important than performance
-    // (just watch, SOMEone is going to ifdef this ...)
-    memset((void *)addr, 0, pool->usize * n);
+    if (zero)
+        memset((void *)addr, 0, pool->usize * n);
 
     int idx = (addr - pool->base) / pool->usize;
     u32 token;
@@ -168,7 +167,7 @@ mem_free(struct mem_pool * pool, u64 addr, int n)
  *  subsequent mam_alloc() and mem_free() functions.
  */
 struct mem_pool *
-mem_pool_create(char * name, u64 base, u64 size, u64 usize, int init)
+mem_pool_create(char * name, u64 base, u64 size, u64 usize, int zero)
 {
     // the first block(s) are reserved for the
     // pool data structure and bitmap
@@ -208,7 +207,7 @@ mem_pool_create(char * name, u64 base, u64 size, u64 usize, int init)
     pool->usize = usize;
 
     memset((void *)(pool->map.blks), 0, nblks / BLK_SIZE);
-    if (init)
+    if (zero)
         memset((void *)pool->base, 0, pool->size);
 
     bitmap_create(&pool->map, nblks);
@@ -216,3 +215,14 @@ mem_pool_create(char * name, u64 base, u64 size, u64 usize, int init)
     return pool;
 }
 
+
+#if 0
+void
+mem_pool_debug(struct mem_pool * pool)
+{
+    printf("pool %s: base(0x%x) size(0x%x) usize(%d) nblks(%d)\n",
+            pool->name, pool->base, pool->size, pool->usize, pool->map.nblks);
+    for (int i = 0; i < pool->map.nblks; i++)
+        printf("    %016lx\n", pool->map.blks[i]);
+}
+#endif

@@ -311,9 +311,9 @@ _vsprintf(char * buf, const char * fmt, va_list ap)
  374:	90000001 	adrp	x1, 0 <_vsprintf>
  378:	91000021 	add	x1, x1, #0x0
  37c:	91010021 	add	x1, x1, #0x40
- 380:	885f7c22 	ldxr	w2, [x1]
- 384:	11000440 	add	w0, w2, #0x1
- 388:	8803fc20 	stlxr	w3, w0, [x1]
+ 380:	c85f7c22 	ldxr	x2, [x1]
+ 384:	91000440 	add	x0, x2, #0x1
+ 388:	c803fc20 	stlxr	w3, x0, [x1]
  38c:	35ffffa3 	cbnz	w3, 380 <puts+0x20>
  390:	d5033bbf 	dmb	ish
  394:	12000853 	and	w19, w2, #0x7

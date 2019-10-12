@@ -43,7 +43,7 @@
 #define SPMC_GATE_INIT(name, size)  \
     struct name##_gate {            \
         volatile u64 queue[size];   \
-        volatile int end;           \
+        volatile long end;          \
     } name##_gate = {{1}, 0};
 
 

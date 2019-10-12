@@ -226,9 +226,9 @@ mem_alloc(struct mem_pool * pool, int n)
  1b8:	90000000 	adrp	x0, 0 <bitmap_create>
  1bc:	91000000 	add	x0, x0, #0x0
  1c0:	91010000 	add	x0, x0, #0x40
- 1c4:	885f7c03 	ldxr	w3, [x0]
- 1c8:	11000461 	add	w1, w3, #0x1
- 1cc:	8802fc01 	stlxr	w2, w1, [x0]
+ 1c4:	c85f7c03 	ldxr	x3, [x0]
+ 1c8:	91000461 	add	x1, x3, #0x1
+ 1cc:	c802fc01 	stlxr	w2, x1, [x0]
  1d0:	35ffffa2 	cbnz	w2, 1c4 <mem_alloc+0x2c>
  1d4:	d5033bbf 	dmb	ish
  1d8:	12000877 	and	w23, w3, #0x7
@@ -349,7 +349,7 @@ mem_alloc(struct mem_pool * pool, int n)
 000000000000031c <mem_free>:
 
 void
-mem_free(struct mem_pool * pool, u64 addr, int n)
+mem_free(struct mem_pool * pool, u64 addr, int n, int zero)
 {
  31c:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
  320:	910003fd 	mov	x29, sp
@@ -359,254 +359,261 @@ mem_free(struct mem_pool * pool, u64 addr, int n)
     if (addr < pool->base  ||  addr >= pool->base + pool->size) {
  330:	f9400000 	ldr	x0, [x0]
  334:	eb01001f 	cmp	x0, x1
- 338:	54000108 	b.hi	358 <mem_free+0x3c>  // b.pmore
+ 338:	54000688 	b.hi	408 <mem_free+0xec>  // b.pmore
  33c:	a9025bf5 	stp	x21, x22, [sp, #32]
  340:	2a0203f5 	mov	w21, w2
  344:	f9400681 	ldr	x1, [x20, #8]
  348:	8b010000 	add	x0, x0, x1
  34c:	eb13001f 	cmp	x0, x19
- 350:	54000168 	b.hi	37c <mem_free+0x60>  // b.pmore
- 354:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 350:	540005a9 	b.ls	404 <mem_free+0xe8>  // b.plast
         printf("mem_free error: 0x%lx is not within pool %s\n", addr, pool->name);
- 358:	f9400e82 	ldr	x2, [x20, #24]
- 35c:	aa1303e1 	mov	x1, x19
- 360:	90000000 	adrp	x0, 0 <bitmap_create>
- 364:	91000000 	add	x0, x0, #0x0
- 368:	94000000 	bl	0 <printf>
         stkdump();
- 36c:	94000000 	bl	0 <stkdump>
+        return;
+    }
+
+    if (zero)
+ 354:	35000683 	cbnz	w3, 424 <mem_free+0x108>
+        memset((void *)addr, 0, pool->usize * n);
+
+    int idx = (addr - pool->base) / pool->usize;
+ 358:	f9400282 	ldr	x2, [x20]
+ 35c:	cb020273 	sub	x19, x19, x2
+ 360:	f9400a82 	ldr	x2, [x20, #16]
+ 364:	9ac20a62 	udiv	x2, x19, x2
     u32 token;
     wait_for_token(pool, token);
-    for (int i = 0; i < n; i++)
-        bitmap_clear(&pool->map, idx + i);
-    return_token(pool, token);
-}
- 370:	a94153f3 	ldp	x19, x20, [sp, #16]
- 374:	a8c37bfd 	ldp	x29, x30, [sp], #48
- 378:	d65f03c0 	ret
-    memset((void *)addr, 0, pool->usize * n);
- 37c:	93407c40 	sxtw	x0, w2
- 380:	f9400a82 	ldr	x2, [x20, #16]
- 384:	9b027c02 	mul	x2, x0, x2
- 388:	52800001 	mov	w1, #0x0                   	// #0
- 38c:	aa1303e0 	mov	x0, x19
- 390:	94000000 	bl	0 <memset>
-    int idx = (addr - pool->base) / pool->usize;
- 394:	f9400281 	ldr	x1, [x20]
- 398:	cb010273 	sub	x19, x19, x1
- 39c:	f9400a81 	ldr	x1, [x20, #16]
- 3a0:	9ac10a61 	udiv	x1, x19, x1
-    wait_for_token(pool, token);
+ 368:	90000000 	adrp	x0, 0 <bitmap_create>
+ 36c:	91000000 	add	x0, x0, #0x0
+ 370:	91010000 	add	x0, x0, #0x40
+ 374:	c85f7c01 	ldxr	x1, [x0]
+ 378:	91000423 	add	x3, x1, #0x1
+ 37c:	c804fc03 	stlxr	w4, x3, [x0]
+ 380:	35ffffa4 	cbnz	w4, 374 <mem_free+0x58>
+ 384:	d5033bbf 	dmb	ish
+ 388:	12000824 	and	w4, w1, #0x7
+ 38c:	90000003 	adrp	x3, 0 <bitmap_create>
+ 390:	91000063 	add	x3, x3, #0x0
+ 394:	92400821 	and	x1, x1, #0x7
+ 398:	f8617860 	ldr	x0, [x3, x1, lsl #3]
+ 39c:	b4ffffe0 	cbz	x0, 398 <mem_free+0x7c>
+ 3a0:	2a0403e1 	mov	w1, w4
  3a4:	90000000 	adrp	x0, 0 <bitmap_create>
  3a8:	91000000 	add	x0, x0, #0x0
- 3ac:	91010000 	add	x0, x0, #0x40
- 3b0:	885f7c02 	ldxr	w2, [x0]
- 3b4:	11000443 	add	w3, w2, #0x1
- 3b8:	8804fc03 	stlxr	w4, w3, [x0]
- 3bc:	35ffffa4 	cbnz	w4, 3b0 <mem_free+0x94>
- 3c0:	d5033bbf 	dmb	ish
- 3c4:	12000844 	and	w4, w2, #0x7
- 3c8:	90000003 	adrp	x3, 0 <bitmap_create>
- 3cc:	91000063 	add	x3, x3, #0x0
- 3d0:	92400842 	and	x2, x2, #0x7
- 3d4:	f8627860 	ldr	x0, [x3, x2, lsl #3]
- 3d8:	b4ffffe0 	cbz	x0, 3d4 <mem_free+0xb8>
- 3dc:	2a0403e2 	mov	w2, w4
- 3e0:	90000000 	adrp	x0, 0 <bitmap_create>
- 3e4:	91000000 	add	x0, x0, #0x0
- 3e8:	f822781f 	str	xzr, [x0, x2, lsl #3]
- 3ec:	11000496 	add	w22, w4, #0x1
+ 3ac:	f821781f 	str	xzr, [x0, x1, lsl #3]
+ 3b0:	11000496 	add	w22, w4, #0x1
     for (int i = 0; i < n; i++)
- 3f0:	710002bf 	cmp	w21, #0x0
- 3f4:	5400014d 	b.le	41c <mem_free+0x100>
- 3f8:	2a0103f3 	mov	w19, w1
- 3fc:	0b0102b5 	add	w21, w21, w1
+ 3b4:	710002bf 	cmp	w21, #0x0
+ 3b8:	5400014d 	b.le	3e0 <mem_free+0xc4>
+ 3bc:	2a0203f3 	mov	w19, w2
+ 3c0:	0b0202b5 	add	w21, w21, w2
         bitmap_clear(&pool->map, idx + i);
- 400:	91008294 	add	x20, x20, #0x20
- 404:	2a1303e1 	mov	w1, w19
- 408:	aa1403e0 	mov	x0, x20
- 40c:	94000000 	bl	4c <bitmap_clear>
+ 3c4:	91008294 	add	x20, x20, #0x20
+ 3c8:	2a1303e1 	mov	w1, w19
+ 3cc:	aa1403e0 	mov	x0, x20
+ 3d0:	94000000 	bl	4c <bitmap_clear>
     for (int i = 0; i < n; i++)
- 410:	11000673 	add	w19, w19, #0x1
- 414:	6b15027f 	cmp	w19, w21
- 418:	54ffff61 	b.ne	404 <mem_free+0xe8>  // b.any
+ 3d4:	11000673 	add	w19, w19, #0x1
+ 3d8:	6b15027f 	cmp	w19, w21
+ 3dc:	54ffff61 	b.ne	3c8 <mem_free+0xac>  // b.any
     return_token(pool, token);
- 41c:	92400ac4 	and	x4, x22, #0x7
- 420:	90000000 	adrp	x0, 0 <bitmap_create>
- 424:	91000000 	add	x0, x0, #0x0
- 428:	d2800021 	mov	x1, #0x1                   	// #1
- 42c:	f8247801 	str	x1, [x0, x4, lsl #3]
- 430:	a9425bf5 	ldp	x21, x22, [sp, #32]
- 434:	17ffffcf 	b	370 <mem_free+0x54>
+ 3e0:	92400ac4 	and	x4, x22, #0x7
+ 3e4:	90000000 	adrp	x0, 0 <bitmap_create>
+ 3e8:	91000000 	add	x0, x0, #0x0
+ 3ec:	d2800021 	mov	x1, #0x1                   	// #1
+ 3f0:	f8247801 	str	x1, [x0, x4, lsl #3]
+ 3f4:	a9425bf5 	ldp	x21, x22, [sp, #32]
+}
+ 3f8:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 3fc:	a8c37bfd 	ldp	x29, x30, [sp], #48
+ 400:	d65f03c0 	ret
+ 404:	a9425bf5 	ldp	x21, x22, [sp, #32]
+        printf("mem_free error: 0x%lx is not within pool %s\n", addr, pool->name);
+ 408:	f9400e82 	ldr	x2, [x20, #24]
+ 40c:	aa1303e1 	mov	x1, x19
+ 410:	90000000 	adrp	x0, 0 <bitmap_create>
+ 414:	91000000 	add	x0, x0, #0x0
+ 418:	94000000 	bl	0 <printf>
+        stkdump();
+ 41c:	94000000 	bl	0 <stkdump>
+        return;
+ 420:	17fffff6 	b	3f8 <mem_free+0xdc>
+        memset((void *)addr, 0, pool->usize * n);
+ 424:	93407c40 	sxtw	x0, w2
+ 428:	f9400a82 	ldr	x2, [x20, #16]
+ 42c:	9b027c02 	mul	x2, x0, x2
+ 430:	52800001 	mov	w1, #0x0                   	// #0
+ 434:	aa1303e0 	mov	x0, x19
+ 438:	94000000 	bl	0 <memset>
+ 43c:	17ffffc7 	b	358 <mem_free+0x3c>
 
-0000000000000438 <mem_pool_create>:
+0000000000000440 <mem_pool_create>:
  *  returns 0 on error, else a pointer to be used for
  *  subsequent mam_alloc() and mem_free() functions.
  */
 struct mem_pool *
-mem_pool_create(char * name, u64 base, u64 size, u64 usize, int init)
+mem_pool_create(char * name, u64 base, u64 size, u64 usize, int zero)
 {
- 438:	a9ba7bfd 	stp	x29, x30, [sp, #-96]!
- 43c:	910003fd 	mov	x29, sp
- 440:	a90153f3 	stp	x19, x20, [sp, #16]
- 444:	a9025bf5 	stp	x21, x22, [sp, #32]
- 448:	a90363f7 	stp	x23, x24, [sp, #48]
- 44c:	a9046bf9 	stp	x25, x26, [sp, #64]
- 450:	aa0003f8 	mov	x24, x0
- 454:	aa0103f5 	mov	x21, x1
- 458:	aa0203f6 	mov	x22, x2
- 45c:	aa0303f4 	mov	x20, x3
- 460:	2a0403f9 	mov	w25, w4
+ 440:	a9ba7bfd 	stp	x29, x30, [sp, #-96]!
+ 444:	910003fd 	mov	x29, sp
+ 448:	a90153f3 	stp	x19, x20, [sp, #16]
+ 44c:	a9025bf5 	stp	x21, x22, [sp, #32]
+ 450:	a90363f7 	stp	x23, x24, [sp, #48]
+ 454:	a9046bf9 	stp	x25, x26, [sp, #64]
+ 458:	aa0003f8 	mov	x24, x0
+ 45c:	aa0103f5 	mov	x21, x1
+ 460:	aa0203f6 	mov	x22, x2
+ 464:	aa0303f4 	mov	x20, x3
+ 468:	2a0403f9 	mov	w25, w4
     // pool data structure and bitmap
 
     struct mem_pool * pool = (struct mem_pool *)base;
 
     int err = 0;
     if (n_bits_set(usize) != 1) {
- 464:	aa0303e0 	mov	x0, x3
- 468:	94000000 	bl	0 <n_bits_set>
+ 46c:	aa0303e0 	mov	x0, x3
+ 470:	94000000 	bl	0 <n_bits_set>
     int err = 0;
- 46c:	52800001 	mov	w1, #0x0                   	// #0
+ 474:	52800001 	mov	w1, #0x0                   	// #0
     if (n_bits_set(usize) != 1) {
- 470:	7100041f 	cmp	w0, #0x1
- 474:	540006a1 	b.ne	548 <mem_pool_create+0x110>  // b.any
+ 478:	7100041f 	cmp	w0, #0x1
+ 47c:	540006a1 	b.ne	550 <mem_pool_create+0x110>  // b.any
         printf("mem_pool_create error: usize must be a power of 2 (%d)\n", usize);
         stkdump();
         err++;
     }
     if (size < usize * 2) {
- 478:	eb1406df 	cmp	x22, x20, lsl #1
- 47c:	54000743 	b.cc	564 <mem_pool_create+0x12c>  // b.lo, b.ul, b.last
- 480:	f9002bfb 	str	x27, [sp, #80]
+ 480:	eb1406df 	cmp	x22, x20, lsl #1
+ 484:	54000743 	b.cc	56c <mem_pool_create+0x12c>  // b.lo, b.ul, b.last
+ 488:	f9002bfb 	str	x27, [sp, #80]
         printf("mem_pool_create error: size (%ld) must mimally be 2x unit size (only %ld)\n",
                 name, size, usize);
         stkdump();
         err++;
     }
     if ((size % usize) != 0) {
- 484:	9ad40ac0 	udiv	x0, x22, x20
- 488:	9b14d800 	msub	x0, x0, x20, x22
- 48c:	b50008e0 	cbnz	x0, 5a8 <mem_pool_create+0x170>
+ 48c:	9ad40ac0 	udiv	x0, x22, x20
+ 490:	9b14d800 	msub	x0, x0, x20, x22
+ 494:	b50008e0 	cbnz	x0, 5b0 <mem_pool_create+0x170>
         printf("mem_pool_create error: size must be a multiple of usize\n");
         stkdump();
         err++;
     }
     if (err)
- 490:	350009a1 	cbnz	w1, 5c4 <mem_pool_create+0x18c>
+ 498:	350009a1 	cbnz	w1, 5cc <mem_pool_create+0x18c>
     struct mem_pool * pool = (struct mem_pool *)base;
- 494:	aa1503fa 	mov	x26, x21
+ 49c:	aa1503fa 	mov	x26, x21
         return 0;
 
     // estimate nblks
     int eblks = (size + usize - 1) / usize;
- 498:	d10006c5 	sub	x5, x22, #0x1
- 49c:	8b1400a5 	add	x5, x5, x20
- 4a0:	9ad408a5 	udiv	x5, x5, x20
+ 4a0:	d10006c5 	sub	x5, x22, #0x1
+ 4a4:	8b1400a5 	add	x5, x5, x20
+ 4a8:	9ad408a5 	udiv	x5, x5, x20
     // actual nblks
     int nblks = (size - sizeof(struct mem_pool)
                       - (eblks + BITS_PER_BYTE - 1) / BITS_PER_BYTE
- 4a4:	d100a2d7 	sub	x23, x22, #0x28
- 4a8:	110038a0 	add	w0, w5, #0xe
- 4ac:	31001ca1 	adds	w1, w5, #0x7
- 4b0:	1a814000 	csel	w0, w0, w1, mi  // mi = first
- 4b4:	13037c00 	asr	w0, w0, #3
- 4b8:	cb20c2f7 	sub	x23, x23, w0, sxtw
+ 4ac:	d100a2d7 	sub	x23, x22, #0x28
+ 4b0:	110038a0 	add	w0, w5, #0xe
+ 4b4:	31001ca1 	adds	w1, w5, #0x7
+ 4b8:	1a814000 	csel	w0, w0, w1, mi  // mi = first
+ 4bc:	13037c00 	asr	w0, w0, #3
+ 4c0:	cb20c2f7 	sub	x23, x23, w0, sxtw
                  ) / usize;
- 4bc:	9ad40af7 	udiv	x23, x23, x20
+ 4c4:	9ad40af7 	udiv	x23, x23, x20
 
     pool->base  = base + usize * (eblks - nblks);
- 4c0:	4b1700a5 	sub	w5, w5, w23
- 4c4:	93407ca5 	sxtw	x5, w5
- 4c8:	9b147ca5 	mul	x5, x5, x20
- 4cc:	8b1500bb 	add	x27, x5, x21
- 4d0:	f90002bb 	str	x27, [x21]
+ 4c8:	4b1700a5 	sub	w5, w5, w23
+ 4cc:	93407ca5 	sxtw	x5, w5
+ 4d0:	9b147ca5 	mul	x5, x5, x20
+ 4d4:	8b1500bb 	add	x27, x5, x21
+ 4d8:	f90002bb 	str	x27, [x21]
     pool->size  = size - usize * (eblks - nblks);
- 4d4:	cb0502d3 	sub	x19, x22, x5
- 4d8:	f90006b3 	str	x19, [x21, #8]
+ 4dc:	cb0502d3 	sub	x19, x22, x5
+ 4e0:	f90006b3 	str	x19, [x21, #8]
     pool->name  = name;
- 4dc:	f9000eb8 	str	x24, [x21, #24]
+ 4e4:	f9000eb8 	str	x24, [x21, #24]
     pool->usize = usize;
- 4e0:	f9000ab4 	str	x20, [x21, #16]
+ 4e8:	f9000ab4 	str	x20, [x21, #16]
 
     memset((void *)(pool->map.blks), 0, nblks / BLK_SIZE);
- 4e4:	93407ef4 	sxtw	x20, w23
- 4e8:	d346fe82 	lsr	x2, x20, #6
- 4ec:	52800001 	mov	w1, #0x0                   	// #0
- 4f0:	9100a2a0 	add	x0, x21, #0x28
- 4f4:	94000000 	bl	0 <memset>
-    if (init)
- 4f8:	350005d9 	cbnz	w25, 5b0 <mem_pool_create+0x178>
+ 4ec:	93407ef4 	sxtw	x20, w23
+ 4f0:	d346fe82 	lsr	x2, x20, #6
+ 4f4:	52800001 	mov	w1, #0x0                   	// #0
+ 4f8:	9100a2a0 	add	x0, x21, #0x28
+ 4fc:	94000000 	bl	0 <memset>
+    if (zero)
+ 500:	350005d9 	cbnz	w25, 5b8 <mem_pool_create+0x178>
     map->nblks = (size + BLK_SIZE - 1) / BLK_SIZE;
- 4fc:	9100fe94 	add	x20, x20, #0x3f
- 500:	d346fe94 	lsr	x20, x20, #6
- 504:	b90022b4 	str	w20, [x21, #32]
+ 504:	9100fe94 	add	x20, x20, #0x3f
+ 508:	d346fe94 	lsr	x20, x20, #6
+ 50c:	b90022b4 	str	w20, [x21, #32]
     map->count = 0;
- 508:	b90026bf 	str	wzr, [x21, #36]
+ 510:	b90026bf 	str	wzr, [x21, #36]
         memset((void *)pool->base, 0, pool->size);
 
     bitmap_create(&pool->map, nblks);
     printf("mem_pool %-8s at 0x%lx end 0x%lx   %d units\n", name, base, base + size, nblks);
- 50c:	2a1703e4 	mov	w4, w23
- 510:	8b1602a3 	add	x3, x21, x22
- 514:	aa1503e2 	mov	x2, x21
- 518:	aa1803e1 	mov	x1, x24
- 51c:	90000000 	adrp	x0, 0 <bitmap_create>
- 520:	91000000 	add	x0, x0, #0x0
- 524:	94000000 	bl	0 <printf>
+ 514:	2a1703e4 	mov	w4, w23
+ 518:	8b1602a3 	add	x3, x21, x22
+ 51c:	aa1503e2 	mov	x2, x21
+ 520:	aa1803e1 	mov	x1, x24
+ 524:	90000000 	adrp	x0, 0 <bitmap_create>
+ 528:	91000000 	add	x0, x0, #0x0
+ 52c:	94000000 	bl	0 <printf>
     return pool;
- 528:	f9402bfb 	ldr	x27, [sp, #80]
+ 530:	f9402bfb 	ldr	x27, [sp, #80]
 }
- 52c:	aa1a03e0 	mov	x0, x26
- 530:	a94153f3 	ldp	x19, x20, [sp, #16]
- 534:	a9425bf5 	ldp	x21, x22, [sp, #32]
- 538:	a94363f7 	ldp	x23, x24, [sp, #48]
- 53c:	a9446bf9 	ldp	x25, x26, [sp, #64]
- 540:	a8c67bfd 	ldp	x29, x30, [sp], #96
- 544:	d65f03c0 	ret
+ 534:	aa1a03e0 	mov	x0, x26
+ 538:	a94153f3 	ldp	x19, x20, [sp, #16]
+ 53c:	a9425bf5 	ldp	x21, x22, [sp, #32]
+ 540:	a94363f7 	ldp	x23, x24, [sp, #48]
+ 544:	a9446bf9 	ldp	x25, x26, [sp, #64]
+ 548:	a8c67bfd 	ldp	x29, x30, [sp], #96
+ 54c:	d65f03c0 	ret
         printf("mem_pool_create error: usize must be a power of 2 (%d)\n", usize);
- 548:	aa1403e1 	mov	x1, x20
- 54c:	90000000 	adrp	x0, 0 <bitmap_create>
- 550:	91000000 	add	x0, x0, #0x0
- 554:	94000000 	bl	0 <printf>
+ 550:	aa1403e1 	mov	x1, x20
+ 554:	90000000 	adrp	x0, 0 <bitmap_create>
+ 558:	91000000 	add	x0, x0, #0x0
+ 55c:	94000000 	bl	0 <printf>
         stkdump();
- 558:	94000000 	bl	0 <stkdump>
+ 560:	94000000 	bl	0 <stkdump>
         err++;
- 55c:	52800021 	mov	w1, #0x1                   	// #1
- 560:	17ffffc6 	b	478 <mem_pool_create+0x40>
+ 564:	52800021 	mov	w1, #0x1                   	// #1
+ 568:	17ffffc6 	b	480 <mem_pool_create+0x40>
         printf("mem_pool_create error: size (%ld) must mimally be 2x unit size (only %ld)\n",
- 564:	aa1403e3 	mov	x3, x20
- 568:	aa1603e2 	mov	x2, x22
- 56c:	aa1803e1 	mov	x1, x24
- 570:	90000000 	adrp	x0, 0 <bitmap_create>
- 574:	91000000 	add	x0, x0, #0x0
- 578:	94000000 	bl	0 <printf>
+ 56c:	aa1403e3 	mov	x3, x20
+ 570:	aa1603e2 	mov	x2, x22
+ 574:	aa1803e1 	mov	x1, x24
+ 578:	90000000 	adrp	x0, 0 <bitmap_create>
+ 57c:	91000000 	add	x0, x0, #0x0
+ 580:	94000000 	bl	0 <printf>
         stkdump();
- 57c:	94000000 	bl	0 <stkdump>
+ 584:	94000000 	bl	0 <stkdump>
     if ((size % usize) != 0) {
- 580:	9ad40ac3 	udiv	x3, x22, x20
- 584:	9b14d874 	msub	x20, x3, x20, x22
+ 588:	9ad40ac3 	udiv	x3, x22, x20
+ 58c:	9b14d874 	msub	x20, x3, x20, x22
         return 0;
- 588:	d280001a 	mov	x26, #0x0                   	// #0
+ 590:	d280001a 	mov	x26, #0x0                   	// #0
     if ((size % usize) != 0) {
- 58c:	b4fffd14 	cbz	x20, 52c <mem_pool_create+0xf4>
+ 594:	b4fffd14 	cbz	x20, 534 <mem_pool_create+0xf4>
         printf("mem_pool_create error: size must be a multiple of usize\n");
- 590:	90000000 	adrp	x0, 0 <bitmap_create>
- 594:	91000000 	add	x0, x0, #0x0
- 598:	94000000 	bl	0 <printf>
+ 598:	90000000 	adrp	x0, 0 <bitmap_create>
+ 59c:	91000000 	add	x0, x0, #0x0
+ 5a0:	94000000 	bl	0 <printf>
         stkdump();
- 59c:	94000000 	bl	0 <stkdump>
+ 5a4:	94000000 	bl	0 <stkdump>
         return 0;
- 5a0:	d280001a 	mov	x26, #0x0                   	// #0
- 5a4:	17ffffe2 	b	52c <mem_pool_create+0xf4>
- 5a8:	f9402bfb 	ldr	x27, [sp, #80]
- 5ac:	17fffff9 	b	590 <mem_pool_create+0x158>
+ 5a8:	d280001a 	mov	x26, #0x0                   	// #0
+ 5ac:	17ffffe2 	b	534 <mem_pool_create+0xf4>
+ 5b0:	f9402bfb 	ldr	x27, [sp, #80]
+ 5b4:	17fffff9 	b	598 <mem_pool_create+0x158>
         memset((void *)pool->base, 0, pool->size);
- 5b0:	aa1303e2 	mov	x2, x19
- 5b4:	52800001 	mov	w1, #0x0                   	// #0
- 5b8:	aa1b03e0 	mov	x0, x27
- 5bc:	94000000 	bl	0 <memset>
- 5c0:	17ffffcf 	b	4fc <mem_pool_create+0xc4>
+ 5b8:	aa1303e2 	mov	x2, x19
+ 5bc:	52800001 	mov	w1, #0x0                   	// #0
+ 5c0:	aa1b03e0 	mov	x0, x27
+ 5c4:	94000000 	bl	0 <memset>
+ 5c8:	17ffffcf 	b	504 <mem_pool_create+0xc4>
         return 0;
- 5c4:	d280001a 	mov	x26, #0x0                   	// #0
- 5c8:	f9402bfb 	ldr	x27, [sp, #80]
- 5cc:	17ffffd8 	b	52c <mem_pool_create+0xf4>
+ 5cc:	d280001a 	mov	x26, #0x0                   	// #0
+ 5d0:	f9402bfb 	ldr	x27, [sp, #80]
+ 5d4:	17ffffd8 	b	534 <mem_pool_create+0xf4>

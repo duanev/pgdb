@@ -26,9 +26,8 @@ main(int ac, char * av[])
 {
     printf("smp v0.91 2019/10/08 el%d\n", armv8_get_el());
 
-    // establish the system memory pools from DRAM following the 'data' segment (see tasks.ld)
-
-    // qemu -m 256  (and see smp.ld)
+    // establish the system memory pools from DRAM following the 'data' segment
+    // qemu -m 256   give about 128MB to each pool   (and check smp.ld)
 
 #   define LOADADDR 0x40000000
 #   define SIZE4k   (LOADADDR + 128 * 1024 * 1024 - (u64)&_free_mem)

@@ -51,8 +51,9 @@ extern struct mem_pool * pool128k;
 extern struct mem_pool * pool4k;
 
 u64    mem_alloc(struct mem_pool * pool, int n);
-void   mem_free(struct mem_pool * pool, u64 addr, int n);
-struct mem_pool * mem_pool_create(char * name, u64 base, u64 size, u64 unit_size, int init);
+void   mem_free(struct mem_pool * pool, u64 addr, int n, int zero);
+struct mem_pool * mem_pool_create(char * name, u64 base, u64 size, u64 unit_size, int zero);
+void   mem_pool_debug(struct mem_pool * pool);
 
 /* -------- library functions */
 
