@@ -44,6 +44,7 @@ $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 128 -monitor stdio -kerne
 ```
 
 ```
+$ dd if=/dev/zero of=dsk0.img bs=4k count=1024
 $ qemu-system-aarch64 -machine virt -cpu cortex-a53 -m 128 -monitor stdio -kernel pcie.bin -device nvme,serial=f0,drive=n0 -drive file=dsk0.img,if=none,format=raw,id=n0 -device pcie-root-port,id=r1,slot=0 -d guest_errors,mmu,unimp,in_asm -s -S
 ```
 execute pcie until ```con_getc()```, then enter the below to hotplug a new nvme device:

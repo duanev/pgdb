@@ -305,7 +305,7 @@ Help_text_main = \
     ctrl+arrows - move active window around screen
      ctrl+space - raise active window to the top
  ctrl+pageup/dn - scroll active window (log,mem only)
- arrows,pageup,pagedn,home - scroll source window"""
+ arrows,pageup,pagedn,home,end,bs - scroll source window"""
 
 Help_text_breakpoints = \
 """
@@ -1098,6 +1098,8 @@ KEY_RESIZE = b'KEY_RESIZE'
 KEY_PPAGE  = b'KEY_PPAGE'
 KEY_NPAGE  = b'KEY_NPAGE'
 KEY_HOME   = b'KEY_HOME'
+KEY_END    = b'KEY_END'
+KEY_BACKSP = b'^?'
 
 CTRL_DOWN  = b'kDN5'
 CTRL_LEFT  = b'kLFT5'
@@ -1861,7 +1863,7 @@ class Background_panel(object):
         self.maxy = len(lines)
         self.maxx = cols
         # win.overlay(destscr, sy, sx, dy, dx, dh, dw) and win.overwrite()
-        # don't handle negative sy,sx values, nor do they handle sy,sx values
+        # can't handle negative sy,sx values, nor do they handle sy,sx values
         # that extend beyond the pad (libncursesw.so.5.9 tends to dump core).
         # So, add blank lines and columns to the top, bottom, and right
         # sides of pad so the focus point can center on a line at the top or
@@ -1920,13 +1922,15 @@ class Background_panel(object):
     def scroll(self, kname):
         h,w = Stdscr.getmaxyx()
         y = self.pady; x = self.padx
-        if   kname == KEY_RIGHT: x += 1
-        elif kname == KEY_LEFT:  x -= 1
-        elif kname == KEY_DOWN:  y += 1
-        elif kname == KEY_UP:    y -= 1
-        elif kname == KEY_NPAGE: y += h//2
-        elif kname == KEY_PPAGE: y -= h//2
-        elif kname == KEY_HOME:  x  = 0
+        if   kname == KEY_RIGHT:  x += 1
+        elif kname == KEY_LEFT:   x -= 1
+        elif kname == KEY_DOWN:   y += 1
+        elif kname == KEY_UP:     y -= 1
+        elif kname == KEY_NPAGE:  y += h//2
+        elif kname == KEY_PPAGE:  y -= h//2
+        elif kname == KEY_BACKSP: x  = 0
+        elif kname == KEY_HOME:   y  = 0
+        elif kname == KEY_END:    y  = self.maxy + self.extra_yx[0]
         self.center(y, x)
 
 # Prioritized hilite types (lowest to highest)
@@ -2121,7 +2125,10 @@ class Src(Background_panel):
             while y < len(self.lines):
                 #if eol:
                 #    Log.write('++ [%s] %d %s\n' % (parms[Src.SP_TXT], x, str(eol)))
-                x = self.lines[y].find(parms[Src.SP_TXT], x, eol)
+
+                # remove leading whitespace - but some searches need at least one leading space
+                l = ' ' + self.lines[y].strip()
+                x = l.find(parms[Src.SP_TXT], x, eol)
                 if x >= 0:
                     # set highlighted text in the pad
                     # overlay will transfer it to stdscr
@@ -2167,8 +2174,8 @@ class Src(Background_panel):
                         best = offset
                         base = fixup
                         label = name
-            #Log.write('++ best %08x %s\n' % (best, self.fname))
             if best != None:
+                #Log.write('++ best %08x %s\n' % (best, self.fname))
                 # We change tabs to spaces when the source file is loaded so
                 # the trailing space in the 'sstr' search below is dependable.
                 # But I'm not sure about the leading space, suppose a single
@@ -2180,15 +2187,16 @@ class Src(Background_panel):
                 # are displayed relative to the segment base address instead of
                 # the the function address.
                 sstr = ' %x: ' % (ip - base)
-                #DEBUG Log.write('ip_search: [%s] -> [%s]\n' % (label, sstr))
+                #Log.write('ip_search: [%s] -> [%s]\n' % (label, sstr))  # DEBUG
                 # lookup label first, but confine the search to the left
                 # margin (ought to replace this with something like:
                 #         re.search('[0-9a-f]* <([\w_]*)>:', ln) ... the same
                 #         way read_nextip_at_or_after_focus_point() works)
+                # 20 is a guess as to how much fluff surrounds the label
                 if self.search(hilitetyp, label, len(label)+20) == None:
                     return False
-                # then limit the offset search to the first 8 characters
-                if self.search(hilitetyp, sstr, 8, restart=False, quiet=True):
+                # finally, find the offset in the left margin
+                if self.search(hilitetyp, sstr, len(sstr)+4, restart=False, quiet=True):
                     return True
         return False
 
@@ -2421,7 +2429,7 @@ def load_gccmap_file(fname, segs, file_base):
                 continue
 
             # look for the indented .data and .text section markers
-            if ln.startswith(' .data ') or ln.startswith(' COMMON '):
+            if ln.startswith(' .data ') or ln.startswith(' .bss ') or ln.startswith(' COMMON '):
                 lstfname = os.path.join(path, t4.split('.')[0] + '.lst')
                 sec_base = int(t2, 16)
                 file_offset = int(t2, 16)
@@ -2647,8 +2655,8 @@ def inputmode_normal(c):
         Prompt = 'text search: '
         update_status(Prompt + Text, CPnrm)
         return inputmode_search
-    elif kn in [KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT,
-                KEY_RESIZE, KEY_PPAGE, KEY_NPAGE, KEY_HOME]:
+    elif kn in [KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_BACKSP,
+                KEY_RESIZE, KEY_PPAGE, KEY_NPAGE, KEY_HOME, KEY_END]:
         if Active_src: Active_src.scroll(kn)
     elif kn in [CTRL_DOWN, CTRL_UP, CTRL_LEFT, CTRL_RIGHT]:
         if Active_obj: Active_obj.jog(kn)
